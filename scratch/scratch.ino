@@ -4,10 +4,21 @@
 
 #define SDA 21 //GPIO pin 21
 #define SCL 22 //GPIO pin 22
-#define INT 23 //Any GPIO pin
+#define INT 23 //An input
+
+/* i2c write to bhi160b example
+ * slave addr - 7 bits
+ * r/w - 1 bit (0 for write)
+ * acknowledgement - 1 bit (0)
+ * register address - 8 bits
+ * acknowledgement - 1 bit (0)
+ * data to reg (n) - 8 bits
+ * acknowledgement - 1 bit (0)
+ * data to reg (n+1) - 8 bits
+ * acknowledgement - 1 bit (0)
+ */
 
 byte i2c_rx; //master data received from I2C bus
-unsigned long time_start; //start time
 
 void setup() {
   // put your setup code here, to run once:
@@ -23,8 +34,9 @@ void loop() {
 }
 /*============================================ FUNCTIONS ==================================================*/
 /*print errors for debugging*/
-void errorhandler(statement) {
+void errorhandler(String statement) {
   Serial.print("[ERROR]\t"+statement);
+  return;
 }
 /*find a slave device*/
 byte finderskeepers() {
@@ -44,9 +56,10 @@ byte finderskeepers() {
     }
   }
   errorhandler("No Connections Found");
+  return 0;
 }
 /*read from i2c slave as master*/
-byte i2c_read(addr,nbytes){
+byte i2c_read(byte addr,word nbytes){
   Wire.requestFrom(addr,nbytes); //request nbytes from address
   if (Wire.available()) {
     return Wire.read();
@@ -54,4 +67,10 @@ byte i2c_read(addr,nbytes){
   else {
     errorhandler("Address Unavailable");
   }
+  return 0;
+}
+/*write to i2c slave as master*/
+void i2c_write(byte data[], int length){
+  Wire.write(data,length);
+  return;
 }
