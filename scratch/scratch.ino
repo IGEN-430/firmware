@@ -6,6 +6,9 @@
 #define SCL 22 //GPIO pin 22
 #define INT 23 //Any GPIO pin
 
+byte i2c_rx; //master data received from I2C bus
+unsigned long time_start; //start time
+
 void setup() {
   // put your setup code here, to run once:
   Wire.begin();
@@ -18,7 +21,12 @@ void loop() {
   Serial.print("Hello Hi\n");
   delay(2000);
 }
-
+/*============================================ FUNCTIONS ==================================================*/
+/*print errors for debugging*/
+void errorhandler(statement) {
+  Serial.print("[ERROR]\t"+statement);
+}
+/*find a slave device*/
 byte finderskeepers() {
   byte error, address;
   Serial.print("I2C Scan");
@@ -31,8 +39,19 @@ byte finderskeepers() {
       return address;
     }
     else if (error == 4) {
-      Serial.print("Uknown Error @ address 0x");
+      Serial.print("[ERROR]\tUknown Error @ address 0x");
       Serial.println(address,HEX);
     }
+  }
+  errorhandler("No Connections Found");
+}
+/*read from i2c slave as master*/
+byte i2c_read(addr,nbytes){
+  Wire.requestFrom(addr,nbytes); //request nbytes from address
+  if (Wire.available()) {
+    return Wire.read();
+  }
+  else {
+    errorhandler("Address Unavailable");
   }
 }
