@@ -1,7 +1,8 @@
 #include <Wire.h>
 
 #include "bhy.h"
-#include "bosch_pcb_7183_di03_bmi160-7183_di03-2-1-11824.h"
+//#include "bosch_pcb_7183_di03_bmi160-7183_di03-2-1-11824.h"
+#include "Bosch_PCB_7183_di01_BMI160-7183_di01.2.1.10836_170103.h"
 
 #define BHY_INT_PIN 23
 #define PWR 19 //GPIO pin 19
