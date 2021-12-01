@@ -62,7 +62,7 @@ void errorhandler(String statement) {
 byte finderskeepers() {
   byte error, address;
   Serial.print("I2C Scan\n");
-  for (address = 1; address < 127; address++) {
+  for (address = 0; address < 127; address++) {
     
     delay(500);//delay
     Serial.print("Checking ");

@@ -57,7 +57,7 @@ void setup()
     Serial.println("Sensor found over I2C! Product ID: 0x" + String(bhi160.productId, HEX));
 
     Serial.println("Uploading Firmware.");
-    bhi160.loadFirmware(bhy1_fw);
+    bhi160.loadFirmware(bhy_firmware_image);
 
     if (!checkSensorStatus())
         return;
