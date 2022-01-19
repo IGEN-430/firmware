@@ -1,102 +1,108 @@
-/* scratch file for SPI coding for ESP32 */
+/* scratch file for i2c coding for ESP32 */
 
 #include <Wire.h>
-//#include <bosch_pcb_7183_di03_bmi160-7183_di03-2-1-11824.h>
-
+#include "bhy.h"
+/*
+GPIO PIN DEFS
+*/
 #define SDA 21 //GPIO pin 21
 #define SCL 22 //GPIO pin 22
 #define INT 23 //GPIO pin 23 interrupt
 #define PWR 19 //GPIO pin 19
-#define LED 18
+#define LED 18 //GPIO 18 -- for testing
 
-/* i2c write to bhi160b example
- * slave addr - 7 bits
- * r/w - 1 bit (0 for write)
- * acknowledgement - 1 bit (0)
- * register address - 8 bits
- * acknowledgement - 1 bit (0)
- * data to reg (n) - 8 bits
- * acknowledgement - 1 bit (0)
- * data to reg (n+1) - 8 bits
- * acknowledgement - 1 bit (0)
+/*
+ * BHI160 REGISTER DEFS
  */
+#define PROD_ID 0x91
 
-byte i2c_rx; //master data received from I2C bus
+/*
+ * BHI160 READ ACCESS REGS
+ */
+#define PARAM_READ  0x3B //16 bits
+#define P_PAGE_SEL  0x54 //8 bits -- bit 7 (0-read/1-write) --bit 6-0 parameter
+#define PARAM_REQ   0x64 //
+#define PARAM_ACK   0x3A //
+
+#define I2C_ADDR 0x0
+
+BHYSensor bhi160;
+
+volatile bool intrToggled = false;
+
+bool checkSensorStatus(void);
+
+void bhyInterruptHandler(void)
+{
+    intrToggled = true;
+}
+
+void waitForBhyInterrupt(void)
+{
+    while (!intrToggled)
+        ;
+    intrToggled = false;
+}
+
 byte addr;
-String buffer;
-int i;
 
 void setup() {
   // put your setup code here, to run once:
   pinMode(PWR,OUTPUT); //set pwr to imu
   digitalWrite(PWR,HIGH); //set to high  
   pinMode(LED,OUTPUT); //set pwr to imu
-  digitalWrite(LED,HIGH); //set to high  
+  digitalWrite(LED,HIGH); //set to high   
+
+  delay(3000);
   
-  delay(20000);
-  
-  
-  Wire.begin();
   Serial.begin(115200);
-  
+  if (Serial){
+    Serial.println("Serial working");
   }
+
+  Wire.begin();
+  addr = finderskeepers();
+
+  bhi160.begin(addr);
+
+  if(!checkSensorStatus()){
+    Serial.println("[ERROR] Sensor Status");
+    return;
+  }
+  else 
+    Serial.println("All OK");
+
+  attachInterrupt(INT,bhyInterruptHandler,RISING);
+}
 
 void loop() {
   // put your main code here, to run repeatedly:
-  if (addr == NULL){
-    addr = finderskeepers();
-  }
-  i++;
-  Serial.print("Loop");
-  Serial.println(i);
-  Serial.print('\r');
-  delay(2000);
-}
-/*============================================ FUNCTIONS ==================================================*/
-/*print errors for debugging*/
-void errorhandler(String statement) {
-  Serial.print("[ERROR]\t"+statement);
-  return;
+//  Serial.println(i2c_read(addr,1,PROD_ID),BIN);
+  Serial.println("Looping");
+  delay(3000);
 }
 /*find a slave device*/
 byte finderskeepers() {
   byte error, address;
   Serial.print("I2C Scan\n");
   for (address = 0; address < 127; address++) {
-    
     delay(500);//delay
     Serial.print("Checking ");
     Serial.println(address);
-    Serial.print("\r");
     
     Wire.beginTransmission(address);
     error = Wire.endTransmission();
     if (error == 0) {
-      Serial.print("I2C @ address 0x\n");
+      Serial.print("I2C @ address 0x");
       Serial.println(address,HEX);
+      Wire.endTransmission();
       return address;
     }
     else if (error == 4) {
-      Serial.print("[ERROR]\tUknown Error @ address 0x\n");
+      Serial.print("[ERROR] Uknown Error @ address 0x\n");
       Serial.println(address,HEX);
     }
   }
-  errorhandler("No Connections Found\n");
+  Serial.println("No Connections Found\n");
   return 0;
-}
-/*read from i2c slave as master*/
-byte i2c_read(byte addr,word nbytes){
-  Wire.requestFrom(addr,nbytes); //request nbytes from address
-  if (Wire.available()) {
-    return Wire.read();
-  }
-  else {
-    errorhandler("Address Unavailable");
-  }
-  return 0;
-}
-/*write to i2c slave as master*/
-void i2c_write(byte data[], int length){
-  Wire.write(data,length);
-  return;
 }

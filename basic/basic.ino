@@ -1,12 +1,13 @@
 #include <Wire.h>
 
 #include "bhy.h"
-//#include "bosch_pcb_7183_di03_bmi160-7183_di03-2-1-11824.h"
 #include "Bosch_PCB_7183_di01_BMI160-7183_di01.2.1.10836_170103.h"
+#include "bosch_pcb_7183_di03_bmi160_bmm150-7183_di03-2-1-11824.h"
 
 #define BHY_INT_PIN 23
 #define PWR 19 //GPIO pin 19
 #define LED 18
+#define DEBUG_MODE 1
 
 BHYSensor bhi160;
 
@@ -40,7 +41,7 @@ void setup()
     Serial.begin(115200);
     Wire.begin();
 
-    addr = finderskeepers();
+//    addr = finderskeepers();
 
     if (Serial)
     {
@@ -49,7 +50,7 @@ void setup()
 
     attachInterrupt(BHY_INT_PIN, bhyInterruptHandler, RISING);
 
-    bhi160.begin(BHY_I2C_ADDR2);
+    bhi160.begin(0x0);
 
     // Check to see if something went wrong.
     if (!checkSensorStatus())
@@ -58,7 +59,7 @@ void setup()
     Serial.println("Sensor found over I2C! Product ID: 0x" + String(bhi160.productId, HEX));
 
     Serial.println("Uploading Firmware.");
-    bhi160.loadFirmware(bhy_firmware_image);
+    bhi160.loadFirmware(bhy2_fw);
 
     if (!checkSensorStatus())
         return;
