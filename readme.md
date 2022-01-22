@@ -5,6 +5,12 @@ BoschSensorHub available at https://github.com/BoschSensortec/BoschSensorHub -> 
 # Setup
 Adding esp32 boards to arduino ide (windows/linux) : [click here](https://randomnerdtutorials.com/installing-the-esp32-board-in-arduino-ide-windows-instructions/)
 
+## Setup MPU6050
+Add the following libraries to Arduino IDE present in repo.
+* MPU6050
+* I2Cdev
+
+## Setup BHI160
 Download bosch sensorhub library from github found here: [click here](https://github.com/BoschSensortec/BoschSensorHub)
 
 To include the folder, go to sketch>include library>.zip and locate the bosch sensorhub library locally on your computer.
