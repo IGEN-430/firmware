@@ -10,6 +10,7 @@ Ryan Lee
 #define SDA 21
 #define SCL 22
 #define INT 23
+#define PWR 19
 
 
 BHYSensor bhi160;
@@ -31,20 +32,28 @@ void waitForBhyInterrupt(void){
 byte finderskeepers(void);
 
 void setup(){
+
+    pinMode(PWR,OUTPUT);
+    digitalWrite(PWR,HIGH);
     delay(2500);
     
     Serial.begin(115200);
     if (Serial) Serial.println("Serial working");
 
     Wire.begin();
-    byte n = finderskeepers();
-    Serial.println("I2C Found @ 0x" + String(n,HEX));
+    int n = finderskeepers();
+    if (n == -1) {
+      Serial.println("No I2C connection found, Ending program");
+      return;
+    }
 
     delay(4000);
 
     attachInterrupt(INT,bhyInterruptHandler,RISING);
+    Serial.println("attached interrupt");
 
-    bhi160.begin(n,Wire); //BHY_I2C_ADDR
+    bhi160.begin(n); //BHY_I2C_ADDR
+    Serial.println("beginning bhi160");
 
     if(!checkSensorStatus()) return;
 
@@ -55,6 +64,8 @@ void setup(){
     
     //finished setup
     Serial.println("Finished setup");
+
+    return;
 }
 
 void loop() {
@@ -66,9 +77,9 @@ byte finderskeepers() {
   byte error, address;
   Serial.print("I2C Scan\n");
   for (address = 0; address < 127; address++) {
-    delay(5000);//delay
+    delay(500);//delay
     Serial.print("Checking ");
-    Serial.println(address);
+    Serial.println(address,HEX);
     
     Wire.beginTransmission(address);
     error = Wire.endTransmission();
@@ -84,7 +95,7 @@ byte finderskeepers() {
     }
   }
   Serial.println("No Connections Found\n");
-  return 0;
+  return (-1);
 }
 
 bool checkSensorStatus(void)
