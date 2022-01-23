@@ -4,9 +4,10 @@
  * IGEN 430 Capstone Project 
  * MPU6050 & ESP32 6 DOF IMU
  */
- #include <MPU6050.h>
+#include <MPU6050.h>
 #include <I2Cdev.h>
 #include "Wire.h"
+#include "mpu_cali.h"
 
 //gpio pin definitions
 #define SDA 21
@@ -21,6 +22,8 @@
 byte finderskeepers(void);
 
 MPU6050 accelgyro;
+
+Calibrator calibrator;
 
 int16_t ax, ay, az;
 int16_t gx, gy, gz;
@@ -48,6 +51,8 @@ void setup(){
     Serial.println("Testing device connections...");
     Serial.println(accelgyro.testConnection() ? "MPU6050 connection successful" : "MPU6050 connection failed");
     if (Serial) Serial.println("Serial working");
+
+    calibrator.calibration(accelgyro);
 }
 
 void loop() {
