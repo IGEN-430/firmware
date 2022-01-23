@@ -16,6 +16,8 @@
 
 #define OUTPUT_READABLE_ACCELGYRO
 
+//default I2C address 0x68
+
 byte finderskeepers(void);
 
 MPU6050 accelgyro;
