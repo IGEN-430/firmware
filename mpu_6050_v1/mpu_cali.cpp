@@ -26,6 +26,7 @@ bool Calibrator::calibration(MPU6050 accelgyro) {
     gzo =- p_means[5]/gyro_deadzone;
 
     while(1) {//no init offsets
+        ready = 0;
         accelgyro.setXAccelOffset(axo);
         accelgyro.setYAccelOffset(ayo);
         accelgyro.setZAccelOffset(azo);
