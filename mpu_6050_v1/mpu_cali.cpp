@@ -2,19 +2,21 @@
 * Ryan Lee
 * IGEN 430 Capstone Project
 * Calibration modules to run everytime the device is powered on
+* referencing, built upon https://github.com/Protonerd/DIYino/blob/master/MPU6050_calibration.ino
 */
 
 #include <Arduino.h>
 #include <MPU6050.h>
 #include <I2Cdev.h>
 #include "Wire.h"
+#include "mpu_cali.h"
 
-bool Calibrator::calibration() {
+bool Calibrator::calibration(MPU6050 accelgyro) {
     word loopcount = 0;
     byte ready = 0;
     long means[N_DATA]; //data structure [ax,ay,az,gx,gy,gz]
     
-    long *p_means = calculate_mean(means);
+    long *p_means = calculate_mean(means,accelgyro);
 
     axo =- p_means[0]/acel_deadzone;
     ayo =- p_means[1]/acel_deadzone;
@@ -27,11 +29,11 @@ bool Calibrator::calibration() {
         accelgyro.setXAccelOffset(axo);
         accelgyro.setYAccelOffset(ayo);
         accelgyro.setZAccelOffset(azo);
-        accelgyro/setXGyroOffset(gxo);
-        accelgyro/setYGyroOffset(gyo);
-        accelgyro/setZGyroOffset(gzo);
+        accelgyro.setXGyroOffset(gxo);
+        accelgyro.setYGyroOffset(gyo);
+        accelgyro.setZGyroOffset(gzo);
         
-        p_means = calculate_mean(means);
+        p_means = calculate_mean(means,accelgyro);
 
         if (abs(p_means[0]) <= acel_deadzone) ready++;
         else axo = axo-p_means[0]/acel_deadzone;
@@ -62,8 +64,11 @@ bool Calibrator::calibration() {
     }
 }
 
-long* calculate_mean(long temp[N_DATA]) {
+long* Calibrator::calculate_mean(long temp[N_DATA],MPU6050 accelgyro) {
     int i = 0;
+    int16_t ax, ay, az;
+    int16_t gx, gy, gz;
+    
     while (i < num_meas_to_discard) { //while loop to skip through the measurements to remove
         accelgyro.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
         delay(2);
@@ -92,4 +97,3 @@ long* calculate_mean(long temp[N_DATA]) {
     Serial.print(temp[4]); Serial.print("\t");
     Serial.println(temp[5]);
 }
-

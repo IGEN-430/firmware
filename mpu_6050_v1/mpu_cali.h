@@ -10,7 +10,7 @@ class Calibrator
 {
     public:
         int axo,ayo,azo,gxo,gyo,gzo;
-        bool calibration();
+        bool calibration(MPU6050 accelgyro);
     private:
         //config
         int buffersize          = 1000; //readings to average for calibration
@@ -20,4 +20,5 @@ class Calibrator
         int acel_offset_div     = 8; //taken from src code
         int gyro_offset_div     = 4; //taken from src code
         //deadzone -- amount of variation between 2 consecutive measurements
+        long* calculate_mean(long temp[N_DATA],MPU6050 accelgyro);
 };
