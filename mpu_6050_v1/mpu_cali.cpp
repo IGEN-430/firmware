@@ -2,7 +2,7 @@
 * Ryan Lee
 * IGEN 430 Capstone Project
 * Calibration modules to run everytime the device is powered on
-* referencing, built upon https://github.com/Protonerd/DIYino/blob/master/MPU6050_calibration.ino
+* based on https://github.com/Protonerd/DIYino/blob/master/MPU6050_calibration.ino
 */
 
 #include <Arduino.h>
@@ -67,23 +67,23 @@ bool Calibrator::calibration(MPU6050 accelgyro) {
 
 long* Calibrator::calculate_mean(long temp[N_DATA],MPU6050 accelgyro) {
     int i = 0;
-    int16_t ax, ay, az;
-    int16_t gx, gy, gz;
+    int16_t xa, ya, za;
+    int16_t xg, yg, zg;
     
     while (i < num_meas_to_discard) { //while loop to skip through the measurements to remove
-        accelgyro.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
+        accelgyro.getMotion6(&xa, &ya, &za, &xg, &yg, &zg);
         delay(2);
         i++;
     }
     i=0; //reset counter
     while (i < buffersize) { //summing the other measurements
-        accelgyro.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
-        temp[0]+=ax;
-        temp[1]+=ay;
-        temp[2]+=az;
-        temp[3]+=gx;
-        temp[4]+=gy;
-        temp[5]+=gz;
+        accelgyro.getMotion6(&xa, &ya, &za, &xg, &yg, &zg);
+        temp[0]+=xa;
+        temp[1]+=ya;
+        temp[2]+=za;
+        temp[3]+=xg;
+        temp[4]+=yg;
+        temp[5]+=zg;
         delay(2);
         i++;
     }

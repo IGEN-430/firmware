@@ -28,6 +28,18 @@ Calibrator calibrator;
 int16_t ax, ay, az;
 int16_t gx, gy, gz;
 
+//mpu control/status vars
+bool dmpReady = false;
+int8_t interrupt_status;
+int8_t device_status;
+int16_t packetsize;
+int16_t fifocount;
+int8_t fifobuffer[64];
+int8_t global_fifo_count = 0;
+
+//orientation vars
+Quaternion q; //[w,x,y,z]
+
 void setup(){
 
     pinMode(PWR,OUTPUT);
@@ -52,13 +64,86 @@ void setup(){
     Serial.println(accelgyro.testConnection() ? "MPU6050 connection successful" : "MPU6050 connection failed");
     if (Serial) Serial.println("Serial working");
 
-    calibrator.calibration(accelgyro);
+    calibrator.calibration(accelgyro); //calibrate the IMU
+
+    //initalize the dmp -> necessary for interrupt flow rather than always polling
+    device_status = accelgyro.dmpInitialize();
+    Serial.println("Initializing DMP...");
+
+    if (device_status == 0) {
+      accelgyro.setDMPEnabled(true);
+    Serial.println("Enabling DMP...");
+
+    //set dmp ready flag
+    dmpReady = true;
+    Serial.println("DMP Ready...");
+
+    packetsize = accelgyro.dmpGetFifoPacketSize();
+    }
+    else 
+      Serial.println("Unable to initalize DMP... Return code "+String(device_status));
 }
 
 void loop() {
     // read raw accel/gyro measurements from device
     delay(2500);
-    accelgyro.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
+    //testing();
+    getQuaternion();
+}
+
+/*find a slave device*/
+byte finderskeepers() {
+  byte error, address;
+  Serial.print("I2C Scan\n");
+  for (address = 0; address < 127; address++) {
+    delay(500);//delay
+    Serial.print("Checking ");
+    Serial.println(address,HEX);
+    
+    Wire.beginTransmission(address);
+    error = Wire.endTransmission();
+    if (error == 0) {
+      Serial.print("I2C @ address 0x");
+      Serial.println(address,HEX);
+      Wire.endTransmission();
+      return address;
+    }
+    else if (error == 4) {
+      Serial.print("[ERROR] Uknown Error @ address 0x\n");
+      Serial.println(address,HEX);
+    }
+  }
+  Serial.println("No Connections Found\n");
+  return (-1);
+}
+
+void getQuaternion() {
+    interrupt_status = accelgyro.getIntStatus();
+    fifocount = accelgyro.getFIFOCount();
+
+    if (interrupt_status & _BV(MPU6050_INTERRUPT_FIFO_OFLOW_BIT) || fifocount >= 1024){
+      accelgyro.resetFIFO();
+      Serial.println("Overflowed FIFO.... Resetting FIFO");
+    }
+    //check for DMP data ready interrupt
+    else if (interrupt_status & _BV(MPU6050_INTERRUPT_DMP_INT_BIT)) {
+      while (fifocount >= packetsize) { //catch up in case someone is using delay()
+        accelgyro.getFIFOBytes(fifobuffer,packetsize);
+        //track fifo count here case there is > 1 packet available
+        //can immediately read more without waiting
+        fifocount -= packetsize;
+      }
+
+      global_fifo_count = accelgyro.getFIFOCount();
+
+      //get quaternion value
+      accelgyro.dmpGetQuaternion(&q,fifobuffer);
+    }
+    return;
+}
+
+void testing() {
+  accelgyro.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
 
     // these methods (and a few others) are also available
     //accelgyro.getAcceleration(&ax, &ay, &az);
@@ -88,30 +173,4 @@ void loop() {
 //    blinkState = !blinkState;
 //    digitalWrite(LED_PIN, blinkState);
 //    delay(100);
-}
-
-/*find a slave device*/
-byte finderskeepers() {
-  byte error, address;
-  Serial.print("I2C Scan\n");
-  for (address = 0; address < 127; address++) {
-    delay(500);//delay
-    Serial.print("Checking ");
-    Serial.println(address,HEX);
-    
-    Wire.beginTransmission(address);
-    error = Wire.endTransmission();
-    if (error == 0) {
-      Serial.print("I2C @ address 0x");
-      Serial.println(address,HEX);
-      Wire.endTransmission();
-      return address;
-    }
-    else if (error == 4) {
-      Serial.print("[ERROR] Uknown Error @ address 0x\n");
-      Serial.println(address,HEX);
-    }
-  }
-  Serial.println("No Connections Found\n");
-  return (-1);
 }

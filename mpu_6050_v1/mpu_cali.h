@@ -1,3 +1,8 @@
+/*
+* Ryan Lee
+* IGEN 430 Capstone Project
+* Header file containing calibrator class and modules based on https://github.com/Protonerd/DIYino/blob/master/MPU6050_calibration.ino
+*/
 #include <Arduino.h>
 #include <MPU6050.h>
 #include <I2Cdev.h>
