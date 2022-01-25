@@ -65,24 +65,24 @@ bool Calibrator::calibration(MPU6050 accelgyro) {
         calculate_mean(accelgyro,means);
 
         if (abs(means[0]) <= acel_deadzone) ready++;
-        else axo -= means[0]/acel_deadzone;
+//        else axo -= means[0]/acel_deadzone;
 
         if (abs(means[1]) <= acel_deadzone) ready++;
-        else ayo -= means[1]/acel_deadzone;
+//        else ayo -= means[1]/acel_deadzone;
 
         if (abs(means[2]) <= acel_deadzone) ready++;
-        else azo -= (16384-means[2])/acel_deadzone;
+//        else azo -= (16384-means[2])/acel_deadzone;
 
         if (abs(means[3]) <= gyro_deadzone) ready++;
-        else gxo -= means[3]/gyro_deadzone;
+//        else gxo -= means[3]/gyro_deadzone;
 
         if (abs(means[4]) <= gyro_deadzone) ready++;
-        else gyo -= means[4]/gyro_deadzone;
+//        else gyo -= means[4]/gyro_deadzone;
 
         if (abs(means[5]) <= gyro_deadzone) ready++;
-        else gzo -= means[5]/gyro_deadzone;
+//        else gzo -= means[5]/gyro_deadzone;
 
-        if ( ready == N_DATA) {
+        if (ready == N_DATA) {
             Serial.println("[SUCCESS] Finished Calibration!");
 
             Serial.print("Final offset values a/g:\t\t\t");
@@ -113,7 +113,7 @@ void Calibrator::calculate_mean(MPU6050 accelgyro,int16_t means[N_DATA]) {
     int i = 0;
     int16_t xa, ya, za;
     int16_t xg, yg, zg;
-    int16_t temp[N_DATA] = {0};
+    long temp[N_DATA] = {0};
     
     while (i < num_meas_to_discard) { //while loop to skip through the measurements to remove
         accelgyro.getMotion6(&xa, &ya, &za, &xg, &yg, &zg);
@@ -135,11 +135,11 @@ void Calibrator::calculate_mean(MPU6050 accelgyro,int16_t means[N_DATA]) {
     for (i=0;i<N_DATA;i++) { //calculate mean
         means[i] = temp[i]/buffersize;
     }
-    Serial.print("Results of measurements (inside function) a/g:\t");
-    Serial.print(temp[0]); Serial.print("\t");
-    Serial.print(temp[1]); Serial.print("\t");
-    Serial.print(temp[2]); Serial.print("\t");
-    Serial.print(temp[3]); Serial.print("\t");
-    Serial.print(temp[4]); Serial.print("\t");
-    Serial.println(temp[5]);
+//    Serial.print("Results of measurements (inside function) a/g:\t");
+//    Serial.print(temp[0]); Serial.print("\t");
+//    Serial.print(temp[1]); Serial.print("\t");
+//    Serial.print(temp[2]); Serial.print("\t");
+//    Serial.print(temp[3]); Serial.print("\t");
+//    Serial.print(temp[4]); Serial.print("\t");
+//    Serial.println(temp[5]);
 }
