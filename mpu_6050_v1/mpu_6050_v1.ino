@@ -1,10 +1,11 @@
-
 /*
  * Ryan Lee 
  * IGEN 430 Capstone Project 
  * MPU6050 & ESP32 6 DOF IMU
  */
-#include <MPU6050.h>
+ 
+//include
+#include <MPU6050_6Axis_MotionApps20.h>
 #include <I2Cdev.h>
 #include "Wire.h"
 #include "mpu_cali.h"
@@ -15,7 +16,7 @@
 #define INT 23
 #define PWR 19
 
-#define OUTPUT_READABLE_ACCELGYRO
+#define OUTPUT_READABLE_QUATERNION
 
 //default I2C address 0x68
 
@@ -33,15 +34,25 @@ bool dmpReady = false;
 int8_t interrupt_status;
 int8_t device_status;
 int16_t packetsize;
-int16_t fifocount;
-int8_t fifobuffer[64];
-int8_t global_fifo_count = 0;
+uint16_t fifocount;
+uint8_t fifobuffer[64];
+uint8_t bytes_toremove;
+
 
 //orientation vars
 Quaternion q; //[w,x,y,z]
 
-void setup(){
+//-----interrupt detection routine-----
+//-                                   -
+//-------------------------------------
+volatile bool mpu_interrupt = false;
+void dmpDataReady() {
+    mpu_interrupt = true;
+}
 
+
+void setup(){
+    //initialize power to IMU
     pinMode(PWR,OUTPUT);
     digitalWrite(PWR,HIGH);
     delay(2500);
@@ -59,6 +70,9 @@ void setup(){
     Serial.println("Initializing I2C devices...");
     accelgyro.initialize();
 
+    //initalize interrupt pin
+    pinMode(INT,INPUT);
+
     // verify connection
     Serial.println("Testing device connections...");
     Serial.println(accelgyro.testConnection() ? "MPU6050 connection successful" : "MPU6050 connection failed");
@@ -74,19 +88,26 @@ void setup(){
       accelgyro.setDMPEnabled(true);
     Serial.println("Enabling DMP...");
 
+    attachInterrupt(digitalPinToInterrupt(INT), dmpDataReady, RISING);
+    interrupt_status = accelgyro.getIntStatus();
+
     //set dmp ready flag
     dmpReady = true;
     Serial.println("DMP Ready...");
 
-    packetsize = accelgyro.dmpGetFifoPacketSize();
+    packetsize = accelgyro.dmpGetFIFOPacketSize();
+    Serial.println("DMP FIFO packet size is ..."+String(packetsize));
+    
     }
     else 
       Serial.println("Unable to initalize DMP... Return code "+String(device_status));
+      // error code 1 -- memory load failed
+      // error code 2 -- dmp config updates failed
 }
 
 void loop() {
     // read raw accel/gyro measurements from device
-    delay(2500);
+     delay(2500);
     //testing();
     getQuaternion();
 }
@@ -95,7 +116,7 @@ void loop() {
 byte finderskeepers() {
   byte error, address;
   Serial.print("I2C Scan\n");
-  for (address = 0; address < 127; address++) {
+  for (address = 100; address < 127; address++) {
     delay(500);//delay
     Serial.print("Checking ");
     Serial.println(address,HEX);
@@ -118,26 +139,29 @@ byte finderskeepers() {
 }
 
 void getQuaternion() {
-    interrupt_status = accelgyro.getIntStatus();
-    fifocount = accelgyro.getFIFOCount();
+    if (!dmpReady) return;
+    
+    //reset interrupt status
+    mpu_interrupt = false;
+    interrupt_status = accelgyro.getIntStatus();     
 
-    if (interrupt_status & _BV(MPU6050_INTERRUPT_FIFO_OFLOW_BIT) || fifocount >= 1024){
-      accelgyro.resetFIFO();
-      Serial.println("Overflowed FIFO.... Resetting FIFO");
-    }
-    //check for DMP data ready interrupt
-    else if (interrupt_status & _BV(MPU6050_INTERRUPT_DMP_INT_BIT)) {
-      while (fifocount >= packetsize) { //catch up in case someone is using delay()
-        accelgyro.getFIFOBytes(fifobuffer,packetsize);
-        //track fifo count here case there is > 1 packet available
-        //can immediately read more without waiting
-        fifocount -= packetsize;
-      }
-
-      global_fifo_count = accelgyro.getFIFOCount();
-
-      //get quaternion value
-      accelgyro.dmpGetQuaternion(&q,fifobuffer);
+    //FIFO handling code
+    fifocount = accelgyro.getFIFOCount();    
+    
+    if (accelgyro.dmpGetCurrentFIFOPacket(fifobuffer)) {
+       accelgyro.dmpGetQuaternion(&q,fifobuffer);
+       #ifdef OUTPUT_READABLE_QUATERNION
+            // display quaternion values in easy matrix form: w x y z
+            Serial.print("quat\t");
+            Serial.print(q.w);
+            Serial.print("\t");
+            Serial.print(q.x);
+            Serial.print("\t");
+            Serial.print(q.y);
+            Serial.print("\t");
+            Serial.println(q.z);
+       #endif
+       accelgyro.resetFIFO();
     }
     return;
 }
