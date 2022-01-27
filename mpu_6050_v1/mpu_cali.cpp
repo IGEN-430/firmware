@@ -11,27 +11,30 @@
 #include "Wire.h"
 #include "mpu_cali.h"
 
-bool Calibrator::calibration(MPU6050 accelgyro) {
+bool Calibrator::calibration(MPU6050 accelgyro, int16_t offsets[N_DATA],byte max_loops) {
     byte i = 0;
     byte ready = 0;
     int16_t means[N_DATA] = {0};
 
-    //init offset values to 0
-    accelgyro.setXAccelOffset(0);
-    accelgyro.setYAccelOffset(0);
-    accelgyro.setZAccelOffset(0);
-    accelgyro.setXGyroOffset(0);
-    accelgyro.setYGyroOffset(0);
-    accelgyro.setZGyroOffset(0);
+    //init offset values to global offset values
+    accelgyro.setXAccelOffset(offsets[0]);
+    accelgyro.setYAccelOffset(offsets[1]);
+    accelgyro.setZAccelOffset(offsets[2]);
+    accelgyro.setXGyroOffset(offsets[3]);
+    accelgyro.setYGyroOffset(offsets[4]);
+    accelgyro.setZGyroOffset(offsets[5]);
 
     Serial.println("Calculating mean for offset calibration");
     calculate_mean(accelgyro,means);
 
-    while(i < MAX_CAL_LOOPS) {  
+    while(i < max_loops) {  
         ready = 0;
         axo -= means[0]/acel_deadzone;
         ayo -= means[1]/acel_deadzone;
-        azo -= (16384-means[2])/acel_deadzone;
+        if (i == 0)
+          azo -= (16384-means[2])/acel_deadzone;
+        else 
+          azo -= means[2]/acel_deadzone;
         gxo -= means[3]/gyro_deadzone;
         gyo -= means[4]/gyro_deadzone;
         gzo -= means[5]/gyro_deadzone;
@@ -94,8 +97,8 @@ bool Calibrator::calibration(MPU6050 accelgyro) {
             Serial.println(gzo);
             return true;
         }
-        if (i >= MAX_CAL_LOOPS) {
-            Serial.println("[FAIL] Calibration unable to return stable results after "+String(MAX_CAL_LOOPS)+"loops");
+        if (i >= max_loops) {
+            Serial.println("[FAIL] Calibration unable to return stable results after "+String(max_loops)+"loops");
             
             Serial.print("Final offset values a/g:\t\t\t");
             Serial.print(axo); Serial.print("\t");
