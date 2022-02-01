@@ -11,7 +11,7 @@
 #include "Wire.h"
 #include "mpu_cali.h"
 
-bool Calibrator::calibration(MPU6050 accelgyro, int16_t offsets[N_DATA],byte max_loops) {
+bool Calibrator::calibration(MPU6050 accelgyro, int16_t offsets[N_DATA],byte max_loops, int buffersize) {
     byte i = 0;
     byte ready = 0;
     int16_t means[N_DATA] = {0};
