@@ -25,7 +25,7 @@ bool Calibrator::calibration(MPU6050 accelgyro, int16_t offsets[N_DATA],byte max
     accelgyro.setZGyroOffset(offsets[5]);
 
     Serial.println("Calculating mean for offset calibration");
-    calculate_mean(accelgyro,means);
+    calculate_mean(accelgyro,means,buffersize);
 
     while(i < max_loops) {  
         ready = 0;
@@ -65,7 +65,7 @@ bool Calibrator::calibration(MPU6050 accelgyro, int16_t offsets[N_DATA],byte max
         i++;
 
         Serial.println("Recalculating mean for offset calibration... loop #"+String(i));
-        calculate_mean(accelgyro,means);
+        calculate_mean(accelgyro,means,buffersize);
 
         if (abs(means[0]) <= acel_deadzone) ready++;
 //        else axo -= means[0]/acel_deadzone;
@@ -112,7 +112,7 @@ bool Calibrator::calibration(MPU6050 accelgyro, int16_t offsets[N_DATA],byte max
     }
 }
 
-void Calibrator::calculate_mean(MPU6050 accelgyro,int16_t means[N_DATA]) {
+void Calibrator::calculate_mean(MPU6050 accelgyro,int16_t means[N_DATA],int buffersize) {
     int i = 0;
     int16_t xa, ya, za;
     int16_t xg, yg, zg;

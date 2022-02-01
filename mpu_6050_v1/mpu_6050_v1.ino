@@ -9,7 +9,7 @@
 #include <I2Cdev.h>
 #include "Wire.h"
 #include "mpu_cali.h"
-#include <EEPROMex.h> //write long-term to EEPROM
+#include <EEPROM.h>
 
 //debug ifdef
 #define DEBUG_
@@ -35,6 +35,11 @@ byte finderskeepers(void);
 MPU6050 accelgyro;
 Calibrator calibrator;
 
+//quaternion holders
+Quaternion q; //[w,x,y,z]
+Quaternion q1;
+Quaternion q2;
+
 //data initializers
 int16_t global_offsets[N_DATA] = {0}; //accel x,y,z gyro x,y,z
 int16_t ax, ay, az;
@@ -49,11 +54,9 @@ uint16_t fifocount;
 uint8_t fifobuffer[64];
 uint8_t bytes_toremove;
 
+//eeprom vars
 int16_t eeprom_read;
 uint16_t eeprom_update;
-
-//orientation vars
-Quaternion q; //[w,x,y,z]
 
 //-----interrupt detection routine-----
 //-                                   -
@@ -122,19 +125,15 @@ void setup(){
 }
 
 void loop() {
-    // read raw accel/gyro measurements from device
      delay(2500);
     getQuaternion();
 }
+
+/*setup calibration one time run when power on*/
 bool setup_calibration() {
+    byte holder;
     //IMU calibration based on EEPROM
-    EEPROM.setMemPool(EEPROM_START,EEPROM_SIZE); //set to 512B so if written over, return error
-    #ifdef DEBUG_
-      EEPROM.setMaxAllowedWrites(60);
-    #endif
-    if (EEPROM.isReady()) {
-      eeprom_read = (int16_t) EEPROM.readInt(EEPROM_START); //read to see if written to EEPROM
-    }
+    EEPROM.get(EEPROM_START,eeprom_read); //read to see if written to EEPROM
 
     if (eeprom_read == 0) {
       Serial.println("Nothing found in EEPROM...");
@@ -142,16 +141,18 @@ bool setup_calibration() {
     }
     else {
       Serial.println("Calibration starting with EEPROM offset values...");
-      int8_t n = EEPROM_START;
-      for(byte i = 0;i<N_DATA;i++) {
-        global_offsets[i] = EEPROM.readInt(n);
+      int n = EEPROM_START;
+      for(int i = 0;i<N_DATA;i++) {
+        EEPROM.get(n,global_offsets[i]);
         n += EEPROM_SIZE;
       }
       calibrator.calibration(accelgyro,global_offsets,MAX_CAL_LOOPS,BUFF_SIZE); //one-time calibration
       n = EEPROM_START;
-      for (byte i = 0;i<N_DATA;i++) {
-        eeprom_update = (uint16_t) global_offsets[i];
-        EEPROM.updateInt(n,eeprom_update);
+      for (int i = 0;i<N_DATA;i++) {
+        holder = highByte(global_offsets[i]);
+        EEPROM.update(n,holder);
+        holder = lowByte(global_offsets[i]);
+        EEPROM.update(n,holder);
         n += EEPROM_SIZE;
       }
     }

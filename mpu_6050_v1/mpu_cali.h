@@ -27,5 +27,5 @@ class Calibrator
         int acel_offset_div     = 8; //taken from src code
         int gyro_offset_div     = 4; //taken from src code
         //deadzone -- amount of variation between 2 consecutive measurements
-        void calculate_mean(MPU6050 accelgyro, int16_t means[N_DATA]);
+        void calculate_mean(MPU6050 accelgyro, int16_t means[N_DATA], int buffersize);
 };
