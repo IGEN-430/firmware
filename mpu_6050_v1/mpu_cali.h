@@ -10,8 +10,8 @@
 
 #define N_DATA                  6
 #define MAX_CAL_LOOPS           30
-#define EEPROM_MAX_CAL_LOOPS    10
-#define EEPROM_BUFF_SIZE        2500
+#define PREF_MAX_CAL_LOOPS      10
+#define PREF_BUFF_SIZE          2500
 #define BUFF_SIZE               5000
 
 class Calibrator

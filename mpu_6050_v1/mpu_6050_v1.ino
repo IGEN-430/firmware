@@ -9,7 +9,7 @@
 #include <I2Cdev.h>
 #include "Wire.h"
 #include "mpu_cali.h"
-#include <EEPROM.h>
+#include <Preferences.h>
 
 //debug ifdef
 #define DEBUG_
@@ -23,17 +23,13 @@
 
 #define OUTPUT_READABLE_QUATERNION
 
-//EEPROM definitions
-#define EEPROM_OFFSET_LENGTH 2 //2 byte length (16 bit, int value)
-#define EEPROM_START 20 //start address
-#define EEPROM_SIZE 512 // ESP32 512B EEPROM
-
 //function definitions
 byte finderskeepers(void);
 
 //class definitions
 MPU6050 accelgyro;
 Calibrator calibrator;
+Preferences preferences;
 
 //quaternion holders
 Quaternion q; //[w,x,y,z]
@@ -41,7 +37,7 @@ Quaternion q1;
 Quaternion q2;
 
 //data initializers
-int16_t global_offsets[N_DATA] = {0}; //accel x,y,z gyro x,y,z
+int16_t global_offsets[N_DATA]; //accel x,y,z gyro x,y,z
 int16_t ax, ay, az;
 int16_t gx, gy, gz;
 
@@ -53,10 +49,6 @@ int16_t packetsize;
 uint16_t fifocount;
 uint8_t fifobuffer[64];
 uint8_t bytes_toremove;
-
-//eeprom vars
-int16_t eeprom_read;
-uint16_t eeprom_update;
 
 //-----interrupt detection routine-----
 //-                                   -
@@ -76,7 +68,7 @@ void setup(){
     //begin communication functions
     Serial.begin(38400);
     Wire.begin();
-    EEPROM.begin(EEPROM_OFFSET_LENGTH);
+    preferences.begin("offset-values",false); //read-only false
 
     //determine if there is I2C connection
     int n = finderskeepers();
@@ -132,29 +124,29 @@ void loop() {
 /*setup calibration one time run when power on*/
 bool setup_calibration() {
     byte holder;
-    //IMU calibration based on EEPROM
-    EEPROM.get(EEPROM_START,eeprom_read); //read to see if written to EEPROM
+    //get offset values in preferences
+    global_offsets[0] = preferences.getUShort("accelx",0);
+    global_offsets[1] = preferences.getUShort("accely",0);
+    global_offsets[2] = preferences.getUShort("accelz",0);
+    global_offsets[3] = preferences.getUShort("gyrox",0);
+    global_offsets[4] = preferences.getUShort("gyroy",0);
+    global_offsets[5] = preferences.getUShort("gyroz",0);
 
-    if (eeprom_read == 0) {
-      Serial.println("Nothing found in EEPROM...");
-      calibrator.calibration(accelgyro,global_offsets,EEPROM_MAX_CAL_LOOPS,EEPROM_BUFF_SIZE); //reduced calibration 
+    if (global_offsets[0] == 0 && global_offsets[3] == 0) { //multiple zero values unlikely
+      Serial.println("Nothing found in Preferences...");
+      calibrator.calibration(accelgyro,global_offsets,PREF_MAX_CAL_LOOPS,PREF_BUFF_SIZE); //reduced calibration 
     }
     else {
-      Serial.println("Calibration starting with EEPROM offset values...");
-      int n = EEPROM_START;
-      for(int i = 0;i<N_DATA;i++) {
-        EEPROM.get(n,global_offsets[i]);
-        n += EEPROM_SIZE;
-      }
+      Serial.println("Calibration starting with Preferences offset values...");
       calibrator.calibration(accelgyro,global_offsets,MAX_CAL_LOOPS,BUFF_SIZE); //one-time calibration
-      n = EEPROM_START;
-      for (int i = 0;i<N_DATA;i++) {
-        holder = highByte(global_offsets[i]);
-        EEPROM.update(n,holder);
-        holder = lowByte(global_offsets[i]);
-        EEPROM.update(n,holder);
-        n += EEPROM_SIZE;
-      }
+
+      //put offset values in preferences
+      preferences.putUShort("accelx",global_offsets[0]);
+      preferences.putUShort("accely",global_offsets[1]);
+      preferences.putUShort("accelz",global_offsets[2]);
+      preferences.putUShort("gyrox",global_offsets[3]);
+      preferences.putUShort("gyroy",global_offsets[4]);
+      preferences.putUShort("gyroz",global_offsets[5]);
     }
     Serial.println("Completed Calibration....");
 }
