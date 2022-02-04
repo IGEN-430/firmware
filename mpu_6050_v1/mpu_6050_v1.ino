@@ -125,12 +125,12 @@ void loop() {
 bool setup_calibration() {
     byte holder;
     //get offset values in preferences
-    global_offsets[0] = preferences.getUShort("accelx",0);
-    global_offsets[1] = preferences.getUShort("accely",0);
-    global_offsets[2] = preferences.getUShort("accelz",0);
-    global_offsets[3] = preferences.getUShort("gyrox",0);
-    global_offsets[4] = preferences.getUShort("gyroy",0);
-    global_offsets[5] = preferences.getUShort("gyroz",0);
+    global_offsets[0] = preferences.getShort("accelx",0);
+    global_offsets[1] = preferences.getShort("accely",0);
+    global_offsets[2] = preferences.getShort("accelz",0);
+    global_offsets[3] = preferences.getShort("gyrox",0);
+    global_offsets[4] = preferences.getShort("gyroy",0);
+    global_offsets[5] = preferences.getShort("gyroz",0);
 
     if (global_offsets[0] == 0 && global_offsets[3] == 0) { //multiple zero values unlikely
       Serial.println("Nothing found in Preferences...");
@@ -141,12 +141,12 @@ bool setup_calibration() {
       calibrator.calibration(accelgyro,global_offsets,MAX_CAL_LOOPS,BUFF_SIZE); //one-time calibration
 
       //put offset values in preferences
-      preferences.putUShort("accelx",global_offsets[0]);
-      preferences.putUShort("accely",global_offsets[1]);
-      preferences.putUShort("accelz",global_offsets[2]);
-      preferences.putUShort("gyrox",global_offsets[3]);
-      preferences.putUShort("gyroy",global_offsets[4]);
-      preferences.putUShort("gyroz",global_offsets[5]);
+      preferences.putShort("accelx",global_offsets[0]);
+      preferences.putShort("accely",global_offsets[1]);
+      preferences.putShort("accelz",global_offsets[2]);
+      preferences.putShort("gyrox",global_offsets[3]);
+      preferences.putShort("gyroy",global_offsets[4]);
+      preferences.putShort("gyroz",global_offsets[5]);
     }
     Serial.println("Completed Calibration....");
 }
