@@ -25,6 +25,8 @@
 
 //function definitions
 byte finderskeepers(void);
+bool setup_calibration(void);
+void getQuaternion(void);
 
 //class definitions
 MPU6050 accelgyro;
@@ -33,11 +35,10 @@ Preferences preferences;
 
 //quaternion holders
 Quaternion q; //[w,x,y,z]
-Quaternion q1;
-Quaternion q2;
 
 //data initializers
 int16_t global_offsets[N_DATA]; //accel x,y,z gyro x,y,z
+int16_t global_offsets_last[N_DATA]; //last state saved
 int16_t ax, ay, az;
 int16_t gx, gy, gz;
 
@@ -57,7 +58,6 @@ volatile bool mpu_interrupt = false;
 void dmpDataReady() {
     mpu_interrupt = true;
 }
-
 
 void setup(){
     //initialize power to IMU
@@ -132,6 +132,10 @@ bool setup_calibration() {
     global_offsets[4] = preferences.getShort("gyroy",0);
     global_offsets[5] = preferences.getShort("gyroz",0);
 
+    for(int i=0;i<N_DATA;i++) {
+        global_offsets_last[i] = global_offsets[i];
+      }
+
     if (global_offsets[0] == 0 && global_offsets[3] == 0) { //multiple zero values unlikely
       Serial.println("Nothing found in Preferences...");
       calibrator.calibration(accelgyro,global_offsets,PREF_MAX_CAL_LOOPS,PREF_BUFF_SIZE); //reduced calibration 
@@ -140,13 +144,17 @@ bool setup_calibration() {
       Serial.println("Calibration starting with Preferences offset values...");
       calibrator.calibration(accelgyro,global_offsets,MAX_CAL_LOOPS,BUFF_SIZE); //one-time calibration
 
-      //put offset values in preferences
-      preferences.putShort("accelx",global_offsets[0]);
-      preferences.putShort("accely",global_offsets[1]);
-      preferences.putShort("accelz",global_offsets[2]);
-      preferences.putShort("gyrox",global_offsets[3]);
-      preferences.putShort("gyroy",global_offsets[4]);
-      preferences.putShort("gyroz",global_offsets[5]);
+      //put offset values in preferences, only write to non-volatile mem if different by deadzone threshold (only 100,000 rewrites available)
+      if (abs(global_offsets[0]-global_offsets_last[0]) > OFFSET_DEADZONE) preferences.putShort("accelx",global_offsets[0]);
+      if (abs(global_offsets[1]-global_offsets_last[1]) > OFFSET_DEADZONE) preferences.putShort("accely",global_offsets[1]);
+      if (abs(global_offsets[2]-global_offsets_last[2]) > OFFSET_DEADZONE) preferences.putShort("accelz",global_offsets[2]);
+      if (abs(global_offsets[3]-global_offsets_last[3]) > OFFSET_DEADZONE) preferences.putShort("gyrox",global_offsets[3]);
+      if (abs(global_offsets[4]-global_offsets_last[4]) > OFFSET_DEADZONE) preferences.putShort("gyroy",global_offsets[4]);
+      if (abs(global_offsets[5]-global_offsets_last[5]) > OFFSET_DEADZONE) preferences.putShort("gyroz",global_offsets[5]);
+
+      for(int i=0;i<N_DATA;i++) {
+        global_offsets_last[i] = global_offsets[i];
+      }
     }
     Serial.println("Completed Calibration....");
 }
