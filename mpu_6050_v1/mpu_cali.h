@@ -9,10 +9,10 @@
 #include "Wire.h"
 
 #define N_DATA                  6
-#define MAX_CAL_LOOPS           30
-#define PREF_MAX_CAL_LOOPS      10
-#define PREF_BUFF_SIZE          2500
-#define BUFF_SIZE               5000
+#define MAX_CAL_LOOPS           20
+#define PREF_MAX_CAL_LOOPS      6
+#define PREF_BUFF_SIZE          100
+#define BUFF_SIZE               500
 #define OFFSET_DEADZONE         6
 
 class Calibrator
@@ -25,7 +25,7 @@ class Calibrator
         int num_meas_to_discard = 100; //num inital measurements to discard
         int acel_deadzone       = 5; //accelerometer error allowed, lower value means higher precision
         int gyro_deadzone       = 5; //gyro error allowed, lwoer value means higher precision
-        int acel_offset_div     = 8; //taken from src code
+        int acel_offset_div     = 6; //taken from src code
         int gyro_offset_div     = 4; //taken from src code
         //deadzone -- amount of variation between 2 consecutive measurements
         void calculate_mean(MPU6050 accelgyro, int16_t means[N_DATA], int buffersize);

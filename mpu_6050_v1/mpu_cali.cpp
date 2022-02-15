@@ -29,12 +29,12 @@ bool Calibrator::calibration(MPU6050 accelgyro, int16_t offsets[N_DATA],byte max
 
     while(i < max_loops) {  
         ready = 0;
-        axo -= means[0]/acel_deadzone;
-        ayo -= means[1]/acel_deadzone;
+        axo -= means[0]/acel_offset_div;
+        ayo -= means[1]/acel_offset_div;
         if (i == 0)
-          azo -= (16384-means[2])/acel_deadzone;
+          azo -= (16384-means[2])/acel_offset_div;
         else 
-          azo -= means[2]/acel_deadzone;
+          azo -= means[2]/acel_offset_div;
         gxo -= means[3]/gyro_deadzone;
         gyo -= means[4]/gyro_deadzone;
         gzo -= means[5]/gyro_deadzone;

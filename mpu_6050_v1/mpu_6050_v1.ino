@@ -1,7 +1,7 @@
 /*
  * Ryan Lee 
  * IGEN 430 Capstone Project 
- * MPU6050 & ESP32 6 DOF IMU
+ * Arduino main code for ESP32 based project communicating with MPU6050 IMU over I2C
  */
 
 //include
@@ -10,9 +10,11 @@
 #include "Wire.h"
 #include "mpu_cali.h"
 #include <Preferences.h>
+#include "mpu_processing.h"
 
 //debug ifdef
 #define DEBUG_
+#define TEST_
 
 //gpio pin definitions
 //default I2C address 0x68
@@ -22,23 +24,34 @@
 #define PWR 19
 
 #define OUTPUT_READABLE_QUATERNION
+//#define OUTPUT_READABLE_REALACCEL
+//#define OUTPUT_READABLE_WORLDACCEL
 
 //function definitions
 byte finderskeepers(void);
 bool setup_calibration(void);
 void getQuaternion(void);
+void run_gen(void);
 
 //class definitions
 MPU6050 accelgyro;
 Calibrator calibrator;
 Preferences preferences;
 
+//data initializers
+int16_t global_offsets[N_DATA] = {0}; //accel x,y,z gyro x,y,z
+int16_t global_offsets_last[N_DATA] = {0}; //last state saved
+
 //quaternion holders
 Quaternion q; //[w,x,y,z]
 
-//data initializers
-int16_t global_offsets[N_DATA]; //accel x,y,z gyro x,y,z
-int16_t global_offsets_last[N_DATA]; //last state saved
+//orientation vectors
+VectorInt16 aa;         // [x, y, z]            accel sensor measurements
+VectorInt16 aaReal;     // [x, y, z]            gravity-free accel sensor measurements
+VectorInt16 aaWorld;    // [x, y, z]            world-frame accel sensor measurements
+VectorFloat gravity;    // [x, y, z]            gravity vector
+
+//raw values
 int16_t ax, ay, az;
 int16_t gx, gy, gz;
 
@@ -66,8 +79,9 @@ void setup(){
     delay(2500);
     
     //begin communication functions
-    Serial.begin(38400);
+    Serial.begin(115200);
     Wire.begin();
+    Wire.setClock(400000);
     preferences.begin("offset-values",false); //read-only false
 
     //determine if there is I2C connection
@@ -88,13 +102,16 @@ void setup(){
     Serial.println("Testing device connections...");
     Serial.println(accelgyro.testConnection() ? "MPU6050 connection successful" : "MPU6050 connection failed");
     if (Serial) Serial.println("Serial working");
-
-    setup_calibration();
       
     //initalize the dmp -> necessary for interrupt flow rather than always polling
     device_status = accelgyro.dmpInitialize();
     Serial.println("Initializing DMP...");
 
+    Serial.println("DMP Sample rate = "+String(accelgyro.getRate())); //auto: 4
+    accelgyro.setRate(0x01);
+
+    setup_calibration();
+    
     if (device_status == 0) {
       accelgyro.setDMPEnabled(true);
     Serial.println("Enabling DMP...");
@@ -117,13 +134,14 @@ void setup(){
 }
 
 void loop() {
-     delay(2500);
-    getQuaternion();
+  delay(125);
+  run_dmp();
 }
 
 /*setup calibration one time run when power on*/
 bool setup_calibration() {
     byte holder;
+    #ifndef TEST_
     //get offset values in preferences
     global_offsets[0] = preferences.getShort("accelx",0);
     global_offsets[1] = preferences.getShort("accely",0);
@@ -131,6 +149,7 @@ bool setup_calibration() {
     global_offsets[3] = preferences.getShort("gyrox",0);
     global_offsets[4] = preferences.getShort("gyroy",0);
     global_offsets[5] = preferences.getShort("gyroz",0);
+    #endif
 
     for(int i=0;i<N_DATA;i++) {
         global_offsets_last[i] = global_offsets[i];
@@ -138,23 +157,23 @@ bool setup_calibration() {
 
     if (global_offsets[0] == 0 && global_offsets[3] == 0) { //multiple zero values unlikely
       Serial.println("Nothing found in Preferences...");
-      calibrator.calibration(accelgyro,global_offsets,PREF_MAX_CAL_LOOPS,PREF_BUFF_SIZE); //reduced calibration 
+      calibrator.calibration(accelgyro,global_offsets,MAX_CAL_LOOPS,BUFF_SIZE); //reduced calibration 
     }
     else {
       Serial.println("Calibration starting with Preferences offset values...");
-      calibrator.calibration(accelgyro,global_offsets,MAX_CAL_LOOPS,BUFF_SIZE); //one-time calibration
+      calibrator.calibration(accelgyro,global_offsets,PREF_MAX_CAL_LOOPS,PREF_BUFF_SIZE); //one-time calibration
+    }
+    Serial.println("Writing offset values to Preferences NVM");
+    //put offset values in preferences, only write to non-volatile mem if different by deadzone threshold (only 100,000 rewrites available)
+    if (abs(global_offsets[0]-global_offsets_last[0]) > OFFSET_DEADZONE) preferences.putShort("accelx",global_offsets[0]);
+    if (abs(global_offsets[1]-global_offsets_last[1]) > OFFSET_DEADZONE) preferences.putShort("accely",global_offsets[1]);
+    if (abs(global_offsets[2]-global_offsets_last[2]) > OFFSET_DEADZONE) preferences.putShort("accelz",global_offsets[2]);
+    if (abs(global_offsets[3]-global_offsets_last[3]) > OFFSET_DEADZONE) preferences.putShort("gyrox",global_offsets[3]);
+    if (abs(global_offsets[4]-global_offsets_last[4]) > OFFSET_DEADZONE) preferences.putShort("gyroy",global_offsets[4]);
+    if (abs(global_offsets[5]-global_offsets_last[5]) > OFFSET_DEADZONE) preferences.putShort("gyroz",global_offsets[5]);
 
-      //put offset values in preferences, only write to non-volatile mem if different by deadzone threshold (only 100,000 rewrites available)
-      if (abs(global_offsets[0]-global_offsets_last[0]) > OFFSET_DEADZONE) preferences.putShort("accelx",global_offsets[0]);
-      if (abs(global_offsets[1]-global_offsets_last[1]) > OFFSET_DEADZONE) preferences.putShort("accely",global_offsets[1]);
-      if (abs(global_offsets[2]-global_offsets_last[2]) > OFFSET_DEADZONE) preferences.putShort("accelz",global_offsets[2]);
-      if (abs(global_offsets[3]-global_offsets_last[3]) > OFFSET_DEADZONE) preferences.putShort("gyrox",global_offsets[3]);
-      if (abs(global_offsets[4]-global_offsets_last[4]) > OFFSET_DEADZONE) preferences.putShort("gyroy",global_offsets[4]);
-      if (abs(global_offsets[5]-global_offsets_last[5]) > OFFSET_DEADZONE) preferences.putShort("gyroz",global_offsets[5]);
-
-      for(int i=0;i<N_DATA;i++) {
-        global_offsets_last[i] = global_offsets[i];
-      }
+    for(int i=0;i<N_DATA;i++) {
+      global_offsets_last[i] = global_offsets[i];
     }
     Serial.println("Completed Calibration....");
 }
@@ -185,7 +204,18 @@ byte finderskeepers() {
   return (-1);
 }
 
-void getQuaternion() {
+void run_gen(void) {
+   accelgyro.getMotion6(&ax,&ay,&az,&gx,&gy,&gz);
+   Serial.print(ax); Serial.print("\t");
+   Serial.print(ay); Serial.print("\t");
+   Serial.print(az); Serial.print("\t");
+   Serial.print(gx); Serial.print("\t");
+   Serial.print(gy); Serial.print("\t");
+   Serial.println(gz);
+}
+
+
+void run_dmp() {
     if (!dmpReady) return;
     
     //reset interrupt status
@@ -196,8 +226,8 @@ void getQuaternion() {
     fifocount = accelgyro.getFIFOCount();    
     
     if (accelgyro.dmpGetCurrentFIFOPacket(fifobuffer)) {
-       accelgyro.dmpGetQuaternion(&q,fifobuffer);
-       #ifdef OUTPUT_READABLE_QUATERNION
+      accelgyro.dmpGetQuaternion(&q,fifobuffer);
+      #ifdef OUTPUT_READABLE_QUATERNION
             // display quaternion values in easy matrix form: w x y z
             Serial.print("quat\t");
             Serial.print(q.w);
@@ -208,7 +238,34 @@ void getQuaternion() {
             Serial.print("\t");
             Serial.println(q.z);
        #endif
-       accelgyro.resetFIFO();
+       #ifdef OUTPUT_READABLE_WORLDACCEL
+            // display initial world-frame acceleration, adjusted to remove gravity
+            // and rotated based on known orientation from quaternion
+            accelgyro.dmpGetAccel(&aa, fifobuffer);
+            accelgyro.dmpGetGravity(&gravity, &q);
+            accelgyro.dmpGetLinearAccel(&aaReal, &aa, &gravity);
+            accelgyro.dmpGetLinearAccelInWorld(&aaWorld, &aaReal, &q);
+            Serial.print("\t");
+            Serial.print(aaWorld.x);
+            Serial.print("\t");
+            Serial.print(aaWorld.y);
+            Serial.print("\t");
+            Serial.println(aaWorld.z);
+        #endif
+       #ifdef OUTPUT_READABLE_REALACCEL
+            // display real acceleration, adjusted to remove gravity
+            accelgyro.dmpGetAccel(&aa, fifobuffer);
+            accelgyro.dmpGetGravity(&gravity, &q);
+            accelgyro.dmpGetLinearAccel(&aaReal, &aa, &gravity);
+            Serial.print("areal\t");
+            Serial.print(aaReal.x);
+            Serial.print("\t");
+            Serial.print(aaReal.y);
+            Serial.print("\t");
+            Serial.println(aaReal.z);
+        #endif
+      accelgyro.resetFIFO();
     }
+    
     return;
 }
