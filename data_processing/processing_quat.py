@@ -14,7 +14,7 @@ def quat_2_euler(w,x,y,z):
         yaw_z[i] = math.degrees(math.atan2(2*y[i]*z[i]-2*w[i]*x[i],2*w[i]*w[i]+2*z[i]*z[i]-1))
     return roll_x,pitch_y,yaw_z
 
-df = pd.read_csv("dd5.csv")
+df = pd.read_csv("dd7.csv")
 
 w = np.array(df.w)
 x = np.array(df.x)

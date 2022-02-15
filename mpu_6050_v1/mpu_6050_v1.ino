@@ -79,7 +79,7 @@ void setup(){
     delay(2500);
     
     //begin communication functions
-    Serial.begin(115200);
+    Serial.begin(38400);
     Wire.begin();
     Wire.setClock(400000);
     preferences.begin("offset-values",false); //read-only false
@@ -223,7 +223,7 @@ void run_dmp() {
     interrupt_status = accelgyro.getIntStatus();     
 
     //FIFO handling code
-    fifocount = accelgyro.getFIFOCount();    
+//    fifocount = accelgyro.getFIFOCount();    
     
     if (accelgyro.dmpGetCurrentFIFOPacket(fifobuffer)) {
       accelgyro.dmpGetQuaternion(&q,fifobuffer);
