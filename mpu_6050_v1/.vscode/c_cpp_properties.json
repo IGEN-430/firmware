@@ -3,7 +3,10 @@
         {
             "name": "Linux",
             "includePath": [
-                "${workspaceFolder}/**"
+                "${workspaceFolder}/**",
+                "~/Arduino/libraries",
+                "/home/ryanl/Arduino/libraries/MPU6050",
+                "/home/ryanl/Arduino/libraries/I2Cdev"
             ],
             "defines": [],
             "compilerPath": "/usr/bin/gcc",
