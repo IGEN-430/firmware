@@ -31,7 +31,7 @@
 #define A 0x01
 //0x01 is 4g
 //0x02 is 8g
-#define MS 9.8 // m/s^2 per g
+#define MS 9800 // cm/s^2 per g
 
 #define GYRO_G 131 // this is +/-250 deg/s - therefore divide by this to get deg/s 
 
@@ -96,7 +96,7 @@ void setup(){
     #ifdef DEBUG_
     Serial.println("DLPF mode = "+String(accelgyro.getDLPFMode()));
     #endif
-    accelgyro.setDLPFMode(0x05);
+    accelgyro.setDLPFMode(0x02);
     
     setup_calibration();
 }
@@ -215,9 +215,9 @@ void run_gen(void) {
   gz_s = gz_s/NCOUNT;
 
   //divid values by g to get values with unit g
-  ax_s = ax_s/G/MS;
-  ay_s = ay_s/G/MS;
-  az_s = az_s/G/MS;
+  ax_s = ax_s; //after ax/G -> units = g then x 9.8m/s^2 per g
+  ay_s = ay_s;
+  az_s = az_s;
 
   //divide values to get deg/s
   gx_s = gx_s/GYRO_G;

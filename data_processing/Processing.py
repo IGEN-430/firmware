@@ -30,64 +30,71 @@ def accel_mpers(df,sensitivity):
 
     for ind,row in enumerate(df):
         for i,elem in enumerate(row):
-            df[ind,i] = (elem/sensitivity*980) #cm/s^2
+            df[ind,i] = round(elem/sensitivity,2) #gs
     return df
 
 def drop_gyro(df):
     df = df.drop(['gx', 'gy', 'gz'],axis='columns')
-    df = df.to_numpy()
+    df = df.to_numpy(dtype='float')
     return df
 
 def drop_accel(df):
     df = df.drop(['ax','ay','az'],axis='columns')
-    df = df.to_numpy()
+    df = df.to_numpy(dtype='float')
     return df
 
 def accel_angles(df):
     pitchAcc = np.zeros(df.shape[0])
     rollAcc = np.zeros(df.shape[0])
-    i=0
-    for row in df:
-        pitchAcc[i] = math.atan2(row['y'],row['z']) * 180/math.pi
-        rollAcc[i] = math.atan2(row['x'],row['z'])*180/math.pi
-        i+=1
-    rot = np.concatenate((pitchAcc,rollAcc),axis=1)
+    z = np.zeros(df.shape[0])
+
+    for i,row in enumerate(df):
+        # pitchAcc[i] = abs(math.atan2(row[2],row[0]) * 180/math.pi) #around y axis
+        # rollAcc[i] = abs(math.atan2(row[2],row[1])*180/math.pi) #around x axis
+        rollAcc[i] = row[1]*90 # around x axis -- therefore measuring the y axis compared to g
+        pitchAcc[i] = row[0]*90
+
+
+    rot = np.array([(rollAcc),(pitchAcc)])
+    rot = np.transpose(rot)
     return rot
 
 def gyro_deg(df,sensitivity):
     for ind,row in enumerate(df):
         for i,elem in enumerate(row):
-            df[ind,i] = (elem/sensitivity)*6 #deg/s
+            df[ind,i] = elem/sensitivity*90/math.pi #deg/s
     return df
 
 def gyro_integ(df):
-    dt = 0.05 #50 ms sample rate
-    pitchGy = np.zeros(df.shape[0],dtype='int64')
-    rollGy = np.zeros(df.shape[0],dtype='int64')
+    dt = 0.135 #50 ms sample rate
+    pitchGy = np.zeros(df.shape[0],dtype='float64')
+    rollGy = np.zeros(df.shape[0],dtype='float64')
 
     
     for i,row in enumerate(df):
         if i != 0:
-            pitchGy[i] = pitchGy[i-1] + ((row[0]) * dt) #x
-            rollGy[i] = rollGy[i-1] + ((row[1]) * dt) #y
+            rollGy[i] = rollGy[i-1] + ((row[0]) * dt) #x
+            pitchGy[i] = pitchGy[i-1] - ((row[1]) * dt) #y
         else:
-            pitchGy[i] = row[0]  * dt
-            rollGy[i] = row[1] * dt
+            rollGy[i] = row[0]  * dt
+            pitchGy[i] = -row[1] * dt
 
-    rot = np.concatenate((np.transpose(pitchGy),np.transpose(rollGy)))
+    rot = np.array([rollGy,pitchGy])
+    rot = np.transpose(rot)
     return rot
 
 def complementaryFilter(rotg,rota):
-    pitchcompl = np.zeros(len(rotg.shape[0]))
-    rollcompl = np.zeros(len(rotg.shape[0]))
-    df = np.concatenate((rota,rotg),axis=1) # [pitcha,rolla,pitchg,rollg]
+    pitchcompl = np.zeros(rotg.shape[0])
+    rollcompl = np.zeros(rotg.shape[0])
+    df = np.concatenate((rota,rotg),axis=1) # [rolla,pitcha,rollg,pitchg]
+    # df = np.transpose(df)
     i=0
     for row in df:
-        pitchcompl[i] = row[2] * 0.98 + row[0] * 0.02
-        rollcompl[i] = row[3] * 0.98 + row[1] * 0.02
+        rollcompl[i] = row[2] * 0.1 + row[0] * 0.9
+        pitchcompl[i] = row[3] * 0.1 + row[1] * 0.9
         i+=1
 
-    rot = np.concatenate((pitchcompl,rollcompl),axis=1)
-    return rot #[pitch,roll]
-
-
+    rot = np.array([rollcompl,pitchcompl])
+    rot = np.transpose(rot)
+    return rot 
+86
