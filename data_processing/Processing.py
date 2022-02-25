@@ -49,11 +49,10 @@ def accel_angles(df):
     z = np.zeros(df.shape[0])
 
     for i,row in enumerate(df):
-        # pitchAcc[i] = abs(math.atan2(row[2],row[0]) * 180/math.pi) #around y axis
-        # rollAcc[i] = abs(math.atan2(row[2],row[1])*180/math.pi) #around x axis
         rollAcc[i] = row[1]*90 # around x axis -- therefore measuring the y axis compared to g
         pitchAcc[i] = row[0]*90
-
+        # rollAcc[i] = math.atan2(row[1],row[2])*180/math.pi
+        # pitchAcc[i] = math.atan2(-row[0],math.sqrt(math.pow(row[2],2)+math.pow(row[1],2)))*180/math.pi
 
     rot = np.array([(rollAcc),(pitchAcc)])
     rot = np.transpose(rot)

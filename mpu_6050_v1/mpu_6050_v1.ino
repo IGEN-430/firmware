@@ -10,7 +10,6 @@
 #include "MPU6050.h"
 #include "Wire.h"
 #include "mpu_cali.h"
-#include <Preferences.h>
 #include "mpu_processing.h"
 
 //debug ifdef
@@ -32,12 +31,9 @@
 //0x01 is 4g
 //0x02 is 8g
 #define MS 9.8 // cm/s^2 per g
-
 #define GYRO_G 131 // this is +/-250 deg/s - therefore divide by this to get deg/s 
 
-// #define OUTPUT_READABLE_QUATERNION
-//#define OUTPUT_READABLE_REALACCEL
-//#define OUTPUT_READABLE_WORLDACCEL
+#define WINDOW 5
 
 //function definitions
 byte finderskeepers(void);
@@ -48,17 +44,22 @@ void run_gen(void);
 //class definitions
 MPU6050 accelgyro;
 Calibrator calibrator;
-Preferences preferences;
 
 //data initializers
 int16_t global_offsets[N_DATA] = {0}; //accel x,y,z gyro x,y,z
 int16_t global_offsets_last[N_DATA] = {0}; //last state saved
 
 //raw values
-int16_t ax, ay, az;
-int16_t gx, gy, gz;
+int16_t ax, ay, az, gx, gy, gz;
+float ax_s, ay_s, az_s, gx_s, gy_s, gz_s; // summed values
+float aroll, apitch, groll, gpitch, croll, cpitch; // current calculated roll/pitch values
+float grollp, gpitchp;  // the last roll pitch values for integration
 
-float ax_s, ay_s, az_s, gx_s, gy_s, gz_s;
+float crollw[WINDOW] = {0};
+float cpitchw[WINDOW] = {0};
+
+float* ptrRoll;
+float* ptrPitch;
 
 void setup(){
     uint8_t temp;
@@ -109,43 +110,17 @@ void loop() {
 /*setup calibration one time run when power on*/
 bool setup_calibration() {
     byte holder;
-    #ifndef TEST_
-    //get offset values in preferences
-    global_offsets[0] = preferences.getShort("accelx",0);
-    global_offsets[1] = preferences.getShort("accely",0);
-    global_offsets[2] = preferences.getShort("accelz",0);
-    global_offsets[3] = preferences.getShort("gyrox",0);
-    global_offsets[4] = preferences.getShort("gyroy",0);
-    global_offsets[5] = preferences.getShort("gyroz",0);
-    #endif
 
     for(int i=0;i<N_DATA;i++) {
         global_offsets_last[i] = global_offsets[i];
       }
 
     if (global_offsets[0] == 0 && global_offsets[3] == 0) { //multiple zero values unlikely
-      #ifdef DEBUG_
-      Serial.println("Nothing found in Preferences...");
-      #endif
       calibrator.calibration(accelgyro,global_offsets,MAX_CAL_LOOPS,BUFF_SIZE); //reduced calibration 
     }
     else {
-      #ifdef DEBUG_
-      Serial.println("Calibration starting with Preferences offset values...");
-      #endif
       calibrator.calibration(accelgyro,global_offsets,PREF_MAX_CAL_LOOPS,PREF_BUFF_SIZE); //one-time calibration
     }
-    #ifdef DEBUG_
-    Serial.println("Writing offset values to Preferences NVM");
-    #endif
-    //put offset values in preferences, only write to non-volatile mem if different by deadzone threshold (only 100,000 rewrites available)
-    if (abs(global_offsets[0]-global_offsets_last[0]) > OFFSET_DEADZONE) preferences.putShort("accelx",global_offsets[0]);
-    if (abs(global_offsets[1]-global_offsets_last[1]) > OFFSET_DEADZONE) preferences.putShort("accely",global_offsets[1]);
-    if (abs(global_offsets[2]-global_offsets_last[2]) > OFFSET_DEADZONE) preferences.putShort("accelz",global_offsets[2]);
-    if (abs(global_offsets[3]-global_offsets_last[3]) > OFFSET_DEADZONE) preferences.putShort("gyrox",global_offsets[3]);
-    if (abs(global_offsets[4]-global_offsets_last[4]) > OFFSET_DEADZONE) preferences.putShort("gyroy",global_offsets[4]);
-    if (abs(global_offsets[5]-global_offsets_last[5]) > OFFSET_DEADZONE) preferences.putShort("gyroz",global_offsets[5]);
-
     for(int i=0;i<N_DATA;i++) {
       global_offsets_last[i] = global_offsets[i];
     }
