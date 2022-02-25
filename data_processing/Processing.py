@@ -97,4 +97,3 @@ def complementaryFilter(rotg,rota):
     rot = np.array([rollcompl,pitchcompl])
     rot = np.transpose(rot)
     return rot 
-86

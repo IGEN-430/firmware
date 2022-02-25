@@ -31,7 +31,7 @@
 #define A 0x01
 //0x01 is 4g
 //0x02 is 8g
-#define MS 9800 // cm/s^2 per g
+#define MS 9.8 // cm/s^2 per g
 
 #define GYRO_G 131 // this is +/-250 deg/s - therefore divide by this to get deg/s 
 
@@ -58,7 +58,7 @@ int16_t global_offsets_last[N_DATA] = {0}; //last state saved
 int16_t ax, ay, az;
 int16_t gx, gy, gz;
 
-int16_t ax_s, ay_s, az_s, gx_s, gy_s, gz_s;
+float ax_s, ay_s, az_s, gx_s, gy_s, gz_s;
 
 void setup(){
     uint8_t temp;
@@ -215,19 +215,18 @@ void run_gen(void) {
   gz_s = gz_s/NCOUNT;
 
   //divid values by g to get values with unit g
-  ax_s = ax_s; //after ax/G -> units = g then x 9.8m/s^2 per g
-  ay_s = ay_s;
-  az_s = az_s;
+  ax_s = ax_s/G; //after ax/G -> units = g then x 9.8m/s^2 per g
+  ay_s = ay_s/G;
+  az_s = az_s/G;
 
   //divide values to get deg/s
   gx_s = gx_s/GYRO_G;
   gy_s = gy_s/GYRO_G;
   gz_s = gz_s/GYRO_G;
-  
 
   //turn to values in g's and degrees
 
-  //output readable accel data (in m/s^2) and gyro data (in deg/s)
+  //output readable accel data (in g) and gyro data (in deg/s)
   Serial.print(ax_s); Serial.print(",");
   Serial.print(ay_s); Serial.print(",");
   Serial.print(az_s); Serial.print(",");
