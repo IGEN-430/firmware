@@ -30,6 +30,8 @@ def accel_mpers(df,sensitivity):
 
     for ind,row in enumerate(df):
         for i,elem in enumerate(row):
+            if i == 2: #if z then add the gravity
+                df[ind,i] = round((elem-sensitivity)/sensitivity,2)
             df[ind,i] = round(elem/sensitivity,2) #gs
     return df
 
@@ -46,13 +48,14 @@ def drop_accel(df):
 def accel_angles(df):
     pitchAcc = np.zeros(df.shape[0])
     rollAcc = np.zeros(df.shape[0])
-    z = np.zeros(df.shape[0])
+    u = 0.01
 
     for i,row in enumerate(df):
         rollAcc[i] = row[1]*90 # around x axis -- therefore measuring the y axis compared to g
         pitchAcc[i] = row[0]*90
-        # rollAcc[i] = math.atan2(row[1],row[2])*180/math.pi
-        # pitchAcc[i] = math.atan2(-row[0],math.sqrt(math.pow(row[2],2)+math.pow(row[1],2)))*180/math.pi
+        # Rxyz based on page 10/12 http://www.cas.mcmaster.ca/~rzheng/course/CAS765fa13/YueSun.pdf
+        # rollAcc[i] = math.atan2(row[1],(np.sign([row[2]])*math.sqrt(math.pow(row[2],2) + u*math.pow(row[0],2))))*180/math.pi
+        # pitchAcc[i] = math.atan2(-row[0],(math.sqrt(math.pow(row[1],2)+math.pow(row[2],2))))*180/math.pi
 
     rot = np.array([(rollAcc),(pitchAcc)])
     rot = np.transpose(rot)
