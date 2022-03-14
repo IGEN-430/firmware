@@ -13,15 +13,14 @@
 #include "mpu_processing.h"
 
 //debug ifdef
-//#define DEBUG_
-#define TEST_
+#define DEBUG_
 
 //gpio pin definitions
 //default I2C address 0x68
 #define SDA 21
 #define SCL 22
 #define INT 23
-#define PWR 19
+#define PWR 33
 
 #define NCOUNT 3
 #define G 8192 
@@ -33,7 +32,7 @@
 #define MS 9.8 // cm/s^2 per g
 #define GYRO_G 131 // this is +/-250 deg/s - therefore divide by this to get deg/s 
 
-#define WINDOW 5
+#define DT  0.135
 
 //function definitions
 byte finderskeepers(void);
@@ -44,6 +43,7 @@ void run_gen(void);
 //class definitions
 MPU6050 accelgyro;
 Calibrator calibrator;
+Processor p;
 
 //data initializers
 int16_t global_offsets[N_DATA] = {0}; //accel x,y,z gyro x,y,z
@@ -51,15 +51,10 @@ int16_t global_offsets_last[N_DATA] = {0}; //last state saved
 
 //raw values
 int16_t ax, ay, az, gx, gy, gz;
-float ax_s, ay_s, az_s, gx_s, gy_s, gz_s; // summed values
-float aroll, apitch, groll, gpitch, croll, cpitch; // current calculated roll/pitch values
-float grollp, gpitchp;  // the last roll pitch values for integration
+double ax_s, ay_s, az_s, gx_s, gy_s, gz_s; // summed values
+double aroll, apitch, groll, gpitch, croll, cpitch; // current calculated roll/pitch values
+double grollp, gpitchp;  // the last roll pitch values for integration
 
-float crollw[WINDOW] = {0};
-float cpitchw[WINDOW] = {0};
-
-float* ptrRoll;
-float* ptrPitch;
 
 void setup(){
     uint8_t temp;
@@ -94,10 +89,11 @@ void setup(){
 
     //device configuratino
     accelgyro.setFullScaleAccelRange(A); //this is +/- 8g therefore to get accel in g's divide # by 4096
+    accelgyro.setDLPFMode(0x02);
     #ifdef DEBUG_
     Serial.println("DLPF mode = "+String(accelgyro.getDLPFMode()));
     #endif
-    accelgyro.setDLPFMode(0x02);
+    
     
     setup_calibration();
 }
@@ -172,7 +168,7 @@ void run_gen(void) {
   gy_s = 0;
   gz_s = 0;
   
-  do {
+  do { //take measurements for average
     accelgyro.getMotion6(&ax,&ay,&az,&gx,&gy,&gz);
      ax_s += ax;
      ay_s += ay;
@@ -199,13 +195,19 @@ void run_gen(void) {
   gy_s = gy_s/GYRO_G;
   gz_s = gz_s/GYRO_G;
 
-  //turn to values in g's and degrees
-
-  //output readable accel data (in g) and gyro data (in deg/s)
+//  output readable accel data (in g) and gyro data (in deg/s)
   Serial.print(ax_s); Serial.print(",");
   Serial.print(ay_s); Serial.print(",");
   Serial.print(az_s); Serial.print(",");
   Serial.print(gx_s); Serial.print(",");
   Serial.print(gy_s); Serial.print(",");
- Serial.println(gz_s);
+  Serial.println(gz_s);
+
+  p.accelAngles(&ax_s,&ay_s,&az_s,&aroll,&apitch);
+//  p.gyroInteg(&gx_s,&gy_s,&groll,&gpitch,&grollp,&gpitchp,DT);
+//  p.complemFilter(&groll,&gpitch,&aroll,&apitch,&croll,&cpitch);
+  Serial.print(aroll); Serial.print(",");
+  Serial.println(apitch);
+//  Serial.print(groll); Serial.print(",");
+//  Serial.println(gpitch);
 }
