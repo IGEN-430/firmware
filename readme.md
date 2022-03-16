@@ -1,3 +1,12 @@
+# ReadME IGEN 430 Capstone Project - Motiv
+Directory: 
+* BHI160b - files and libraries for BHI160B Bosche IMU, not used
+* I2Cdev/MPU6050 - library files for MPU6050
+* MPU_6050_V1 - Project files containing developed classes and files for firmware
+* Data Processing - data dumps and Python scripts for data processing
+
+
+
 # ReadME IGEN 430 ESP32 BHI160B Research/Preliminary Examples
 
 BoschSensorHub available at https://github.com/BoschSensortec/BoschSensorHub -> need to install the library into arduino ide.

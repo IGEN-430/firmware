@@ -34,7 +34,18 @@ void Processor::gyroInteg(double* gx, double* gy,double* groll,double* gpitch, d
 }
 /* Complementary filter to fuse data */
 void Processor::complemFilter(double* groll, double* gpitch, double* aroll, double* apitch, double* croll, double* cpitch) {
-    *croll = *groll * 0.1 + *aroll * 0.9;
-    *cpitch = *gpitch * 0.1 + *apitch * 0.9;
+    if( (*groll > 0 && *aroll > 0) || (*groll < 0 && *aroll < 0)) {
+    *croll = *groll * 0.2 + *aroll * 0.8;
+    }
+    else {
+      *croll = -*groll * 0.2 + *aroll * 0.8;
+    }
+    if ( (*gpitch > 0 && *apitch > 0) || (*gpitch < 0 && *apitch < 0)){
+      *cpitch = *gpitch * 0.1 + *apitch * 0.9;
+    }
+    else {
+      *cpitch = -*gpitch * 0.1 + *apitch * 0.9;
+    }
+    
     return;
 }

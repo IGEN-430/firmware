@@ -7,7 +7,7 @@ class Processor {
         float maxima;
         float minima;
         int16_t reps;
-        float dt = 0.135;   //change this if necessary
+        float dt = 0.01;   //change this if necessary
         
         void accelAngles(double* ax, double* ay, double* az, double* aroll, double* apitch);
         void gyroInteg(double* gx, double* gy,double* groll,double* gpitch, double* grollp, double* gpitchp, float dt);

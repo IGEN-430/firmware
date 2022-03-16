@@ -32,7 +32,7 @@
 #define MS 9.8 // cm/s^2 per g
 #define GYRO_G 131 // this is +/-250 deg/s - therefore divide by this to get deg/s 
 
-#define DT  0.135
+#define DT  0.09
 
 //function definitions
 byte finderskeepers(void);
@@ -89,7 +89,7 @@ void setup(){
 
     //device configuratino
     accelgyro.setFullScaleAccelRange(A); //this is +/- 8g therefore to get accel in g's divide # by 4096
-    accelgyro.setDLPFMode(0x02);
+    accelgyro.setDLPFMode(0x04);
     #ifdef DEBUG_
     Serial.println("DLPF mode = "+String(accelgyro.getDLPFMode()));
     #endif
@@ -159,7 +159,7 @@ byte finderskeepers() {
   return (-1);
 }
 
-void run_gen(void) {
+void run_gen(void) { //probably should switch to array
   uint8_t i=0;
   ax_s = 0;
   ay_s = 0;
@@ -196,18 +196,20 @@ void run_gen(void) {
   gz_s = gz_s/GYRO_G;
 
 //  output readable accel data (in g) and gyro data (in deg/s)
-  Serial.print(ax_s); Serial.print(",");
-  Serial.print(ay_s); Serial.print(",");
-  Serial.print(az_s); Serial.print(",");
-  Serial.print(gx_s); Serial.print(",");
-  Serial.print(gy_s); Serial.print(",");
-  Serial.println(gz_s);
+//  Serial.print(ax_s); Serial.print(",");
+//  Serial.print(ay_s); Serial.print(",");
+//  Serial.print(az_s); Serial.print(",");
+//  Serial.print(gx_s); Serial.print(",");
+//  Serial.print(gy_s); Serial.print(",");
+//  Serial.println(gz_s);
 
   p.accelAngles(&ax_s,&ay_s,&az_s,&aroll,&apitch);
-//  p.gyroInteg(&gx_s,&gy_s,&groll,&gpitch,&grollp,&gpitchp,DT);
-//  p.complemFilter(&groll,&gpitch,&aroll,&apitch,&croll,&cpitch);
-  Serial.print(aroll); Serial.print(",");
+  p.gyroInteg(&gx_s,&gy_s,&groll,&gpitch,&grollp,&gpitchp,DT);
+  p.complemFilter(&groll,&gpitch,&aroll,&apitch,&croll,&cpitch);
+//  Serial.print(aroll); Serial.print(",");
   Serial.println(apitch);
 //  Serial.print(groll); Serial.print(",");
-//  Serial.println(gpitch);
+  Serial.println(gpitch);
+//  Serial.print(croll); Serial.print(",");
+  Serial.print("Comp Filter:  "); Serial.println(cpitch);
 }
