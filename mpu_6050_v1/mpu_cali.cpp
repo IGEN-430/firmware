@@ -11,6 +11,10 @@
 #include "Wire.h"
 #include "mpu_cali.h"
 
+/*
+* calibration function basically takes a sample of measurements and tries to adjust offsets
+* until the deadzone is reached (deadzone specified in .h file)
+*/
 bool Calibrator::calibration(MPU6050 accelgyro, int16_t offsets[N_DATA],byte max_loops, int buffersize) {
     byte i = 0;
     byte ready = 0;
@@ -29,7 +33,7 @@ bool Calibrator::calibration(MPU6050 accelgyro, int16_t offsets[N_DATA],byte max
 
     while(i < max_loops) {  
         ready = 0;
-        axo -= means[0]/acel_offset_div;
+        axo -= means[0]/acel_offset_div; //divisor is like a dampening factor
         ayo -= means[1]/acel_offset_div;
         if (i == 0)
           azo -= (16384-means[2])/acel_offset_div;
@@ -74,26 +78,19 @@ bool Calibrator::calibration(MPU6050 accelgyro, int16_t offsets[N_DATA],byte max
 
         if (abs(means[0]) <= acel_deadzone) ready++;
 //        else axo -= means[0]/acel_deadzone;
-
         if (abs(means[1]) <= acel_deadzone) ready++;
 //        else ayo -= means[1]/acel_deadzone;
-
         if (abs(means[2]) <= acel_deadzone) ready++;
 //        else azo -= (16384-means[2])/acel_deadzone;
-
         if (abs(means[3]) <= gyro_deadzone) ready++;
 //        else gxo -= means[3]/gyro_deadzone;
-
         if (abs(means[4]) <= gyro_deadzone) ready++;
 //        else gyo -= means[4]/gyro_deadzone;
-
         if (abs(means[5]) <= gyro_deadzone) ready++;
 //        else gzo -= means[5]/gyro_deadzone;
-
         if (ready == N_DATA) {
             #ifdef DEBUG_
             Serial.println("[SUCCESS] Finished Calibration!");
-
             Serial.print("Final offset values a/g:\t\t\t");
             Serial.print(axo); Serial.print("\t");
             Serial.print(ayo); Serial.print("\t");
@@ -120,7 +117,9 @@ bool Calibrator::calibration(MPU6050 accelgyro, int16_t offsets[N_DATA],byte max
         }
     }
 }
-
+/*
+ * grab sample data and calculate the average -- discards num_meas_to_discard measurements first
+ */
 void Calibrator::calculate_mean(MPU6050 accelgyro,int16_t means[N_DATA],int buffersize) {
     int i = 0;
     int16_t xa, ya, za;

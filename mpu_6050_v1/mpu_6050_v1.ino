@@ -20,7 +20,7 @@
 #define SDA 21
 #define SCL 22
 #define INT 23
-#define PWR 33
+#define PWR 33 //tinypico is 33, dev module is 19
 
 #define NCOUNT 3
 #define G 8192 
@@ -36,9 +36,10 @@
 
 //function definitions
 byte finderskeepers(void);
-bool setup_calibration(void);
+bool calibrate(void);
 void getQuaternion(void);
 void run_gen(void);
+bool checkCalStatus(void);
 
 //class definitions
 MPU6050 accelgyro;
@@ -94,8 +95,7 @@ void setup(){
     Serial.println("DLPF mode = "+String(accelgyro.getDLPFMode()));
     #endif
     
-    
-    setup_calibration();
+    calibrate();
 }
 
 void loop() {
@@ -103,8 +103,13 @@ void loop() {
   delay(50);
 }
 
+/*function to check from ble whether it is time to recalibrate or not */
+bool checkCalStatus(){
+  delay(200);
+}
+
 /*setup calibration one time run when power on*/
-bool setup_calibration() {
+bool calibrate() {
     byte holder;
 
     for(int i=0;i<N_DATA;i++) {
@@ -199,7 +204,7 @@ void run_gen(void) { //probably should switch to array
 //  Serial.print(ax_s); Serial.print(",");
 //  Serial.print(ay_s); Serial.print(",");
 //  Serial.print(az_s); Serial.print(",");
-//  Serial.print(gx_s); Serial.print(",");
+//  Serial.print(gxd_s); Serial.print(",");
 //  Serial.print(gy_s); Serial.print(",");
 //  Serial.println(gz_s);
 

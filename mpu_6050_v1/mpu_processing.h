@@ -4,9 +4,6 @@
 
 class Processor {
     public:
-        float maxima;
-        float minima;
-        int16_t reps;
         float dt = 0.01;   //change this if necessary
         
         void accelAngles(double* ax, double* ay, double* az, double* aroll, double* apitch);
