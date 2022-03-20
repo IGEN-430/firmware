@@ -11,6 +11,7 @@
 #include "Wire.h"
 #include "mpu_cali.h"
 #include "mpu_processing.h"
+#include "ble.h"
 
 //debug ifdef
 #define DEBUG_
@@ -38,13 +39,14 @@
 byte finderskeepers(void);
 bool calibrate(void);
 void getQuaternion(void);
-void run_gen(void);
+void get_angles(void);
 bool checkCalStatus(void);
 
 //class definitions
 MPU6050 accelgyro;
 Calibrator calibrator;
 Processor p;
+MyBLE ble;
 
 //data initializers
 int16_t global_offsets[N_DATA] = {0}; //accel x,y,z gyro x,y,z
@@ -56,9 +58,10 @@ double ax_s, ay_s, az_s, gx_s, gy_s, gz_s; // summed values
 double aroll, apitch, groll, gpitch, croll, cpitch; // current calculated roll/pitch values
 double grollp, gpitchp;  // the last roll pitch values for integration
 
+uint8_t output;
+
 
 void setup(){
-    uint8_t temp;
     //initialize power to IMU
     pinMode(PWR,OUTPUT);
     digitalWrite(PWR,HIGH);
@@ -76,6 +79,9 @@ void setup(){
       #endif
       exit(0);
     }
+
+    //start ble
+    ble.setup();
 
     // initialize device
     #ifdef DEBUG_
@@ -99,13 +105,18 @@ void setup(){
 }
 
 void loop() {
-  run_gen();
+  get_angles(); //update angles
+  output = (uint8_t) cpitch;
+  Serial.print("unsinged 8bit int value: "); Serial.println(output);
+  ble.bleComm(cpitch); //cast cpitch to uint8_t
   delay(50);
 }
 
 /*function to check from ble whether it is time to recalibrate or not */
 bool checkCalStatus(){
-  delay(200);
+  if (gpitch > 360 || gpitch < -360) {
+    calibrate();
+  }
 }
 
 /*setup calibration one time run when power on*/
@@ -128,6 +139,10 @@ bool calibrate() {
     #ifdef DEBUG_
     Serial.println("Completed Calibration....");
     #endif
+}
+
+void bletimer(){
+
 }
 
 /*find a slave device*/
@@ -164,7 +179,7 @@ byte finderskeepers() {
   return (-1);
 }
 
-void run_gen(void) { //probably should switch to array
+void get_angles(void) { //probably should switch to array
   uint8_t i=0;
   ax_s = 0;
   ay_s = 0;
