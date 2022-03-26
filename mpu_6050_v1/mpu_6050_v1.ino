@@ -12,15 +12,17 @@
 #include "mpu_cali.h"
 #include "mpu_processing.h"
 #include "ble.h"
+#include <WiFi.h>
+#include <esp_now.h>
 
 //debug ifdef
 #define DEBUG_
 
+#define SLAVE
+#define MASTER
+
 //gpio pin definitions
 //default I2C address 0x68
-#define SDA 21
-#define SCL 22
-#define INT 23
 #define PWR 33 //tinypico is 33, dev module is 19
 
 #define NCOUNT 3
@@ -33,14 +35,16 @@
 #define MS 9.8 // cm/s^2 per g
 #define GYRO_G 131 // this is +/-250 deg/s - therefore divide by this to get deg/s 
 
-#define DT  0.09
-
 //function definitions
 byte finderskeepers(void);
 bool calibrate(void);
 void getQuaternion(void);
 void get_angles(void);
 bool checkCalStatus(void);
+void OnDataSent(const uint8_t* mac_addr, esp_now_send_status_t status);
+void OnDataRec(const uint8_t* mac, const uint8_t* incomingData, int len);
+void sendESPnow(void);
+
 
 //class definitions
 MPU6050 accelgyro;
@@ -49,8 +53,8 @@ Processor p;
 MyBLE ble;
 
 //data initializers
-int16_t global_offsets[N_DATA] = {0}; //accel x,y,z gyro x,y,z
-int16_t global_offsets_last[N_DATA] = {0}; //last state saved
+int16_t global_offsets[N_DATA] = {704,-1286,-134,36,71,22}; //accel x,y,z gyro x,y,z
+int16_t global_offsets_last[N_DATA] = {704,-1286,-134,36,71,22}; //last state saved
 
 //raw values
 int16_t ax, ay, az, gx, gy, gz;
@@ -60,6 +64,17 @@ double grollp, gpitchp;  // the last roll pitch values for integration
 
 uint8_t output;
 
+typedef struct struct_angles {
+  int8_t croll, cpitch;
+} struct_angles;
+
+struct_angles myData;
+
+#ifdef SLAVE
+esp_now_peer_info_t peerInfo;
+uint8_t broadcastAddress[6];
+esp_err_t result;
+#endif SLAVE
 
 void setup(){
     //initialize power to IMU
@@ -80,8 +95,37 @@ void setup(){
       exit(0);
     }
 
+    //start wifi
+    WiFi.mode(WIFI_STA);
+
+    //init espnow
+    if (esp_now_init() != ESP_OK) {
+    Serial.println("Error initializing ESP-NOW");
+    return;
+    }
+
+    #ifdef SLAVE
+    //register send CB to get status
+    esp_now_register_send_cb(OnDataSent);
+
+    
+    // Register peer
+    memcpy(peerInfo.peer_addr, broadcastAddress, 6);
+    peerInfo.channel = 0;  
+    peerInfo.encrypt = false;
+
+    // add peer
+    if (esp_now_add_peer(&peerInfo) != ESP_OK){
+    Serial.println("Failed to add peer");
+    return;
+    }
+    #endif
+
+    #ifdef MASTER
+    esp_now_register_recv_cb(OnDataRec);
     //start ble
     ble.setup();
+    #endif
 
     // initialize device
     #ifdef DEBUG_
@@ -106,15 +150,43 @@ void setup(){
 
 void loop() {
   get_angles(); //update angles
-  output = (uint8_t) cpitch;
-  Serial.print("unsinged 8bit int value: "); Serial.println(output);
-  ble.bleComm(cpitch); //cast cpitch to uint8_t
+//  output = (uint8_t) cpitch;
+  ble.bleComm((uint8_t) cpitch); //cast cpitch to uint8_t to send over ble
+  
+  #ifdef SLAVE //if slave device, go send data over espnow
+  sendESPnow();
+  #endif
+  
+  outputAngles(); //print output angles
+  checkCalStatus(); //poll if angle greater than 180 -> recalibrate
+  
   delay(50);
+}
+
+void OnDataSent(const uint8_t* mac_addr, esp_now_send_status_t status) {
+  Serial.print("Last Packet Status:");
+  Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Success": "Failed");
+}
+
+void OnDataRec(const uint8_t* mac, const uint8_t* incomingData, int len) {
+  memcpy(&myData,incomingData,sizeof(myData));
+}
+
+void sendESPnow(void) {
+  myData.croll = croll;
+  myData.cpitch = cpitch;
+  result = esp_now_send(broadcastAddress, (uint8_t *) &myData, sizeof(myData));
+  if (result == ESP_OK) {
+    Serial.println("Sent with success");
+  }
+  else {
+    Serial.println("Error sending the data");
+  }
 }
 
 /*function to check from ble whether it is time to recalibrate or not */
 bool checkCalStatus(){
-  if (gpitch > 360 || gpitch < -360) {
+  if (gpitch > 180 || gpitch < -180) {
     calibrate();
   }
 }
@@ -136,13 +208,6 @@ bool calibrate() {
     for(int i=0;i<N_DATA;i++) {
       global_offsets_last[i] = global_offsets[i];
     }
-    #ifdef DEBUG_
-    Serial.println("Completed Calibration....");
-    #endif
-}
-
-void bletimer(){
-
 }
 
 /*find a slave device*/
@@ -151,10 +216,6 @@ byte finderskeepers() {
   Serial.print("I2C Scan\n");
   for (address = 100; address < 127; address++) {
     delay(500);//delay
-    #ifdef DEBUG_
-    Serial.print("Checking ");
-    Serial.println(address,HEX);
-    #endif
     
     Wire.beginTransmission(address);
     error = Wire.endTransmission();
@@ -167,15 +228,9 @@ byte finderskeepers() {
       return address;
     }
     else if (error == 4) {
-      #ifdef DEBUG_
-      Serial.print("[ERROR] Uknown Error @ address 0x\n");
-      Serial.println(address,HEX);
-      #endif
+      break;
     }
   }
-  #ifdef DEBUG_
-  Serial.println("No Connections Found\n");
-  #endif
   return (-1);
 }
 
@@ -215,21 +270,16 @@ void get_angles(void) { //probably should switch to array
   gy_s = gy_s/GYRO_G;
   gz_s = gz_s/GYRO_G;
 
-//  output readable accel data (in g) and gyro data (in deg/s)
-//  Serial.print(ax_s); Serial.print(",");
-//  Serial.print(ay_s); Serial.print(",");
-//  Serial.print(az_s); Serial.print(",");
-//  Serial.print(gxd_s); Serial.print(",");
-//  Serial.print(gy_s); Serial.print(",");
-//  Serial.println(gz_s);
-
   p.accelAngles(&ax_s,&ay_s,&az_s,&aroll,&apitch);
-  p.gyroInteg(&gx_s,&gy_s,&groll,&gpitch,&grollp,&gpitchp,DT);
+  p.gyroInteg(&gx_s,&gy_s,&groll,&gpitch,&grollp,&gpitchp,p.dt_num,p.dt_denom);
   p.complemFilter(&groll,&gpitch,&aroll,&apitch,&croll,&cpitch);
-//  Serial.print(aroll); Serial.print(",");
+}
+
+void outputAngles(void)
+{
+  Serial.print(aroll); Serial.print(",");
   Serial.println(apitch);
-//  Serial.print(groll); Serial.print(",");
+  Serial.print(groll); Serial.print(",");
   Serial.println(gpitch);
-//  Serial.print(croll); Serial.print(",");
-  Serial.print("Comp Filter:  "); Serial.println(cpitch);
+  Serial.print("Comp Filter:  "); Serial.print(croll);Serial.print(",");Serial.println(cpitch);
 }

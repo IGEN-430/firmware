@@ -10,8 +10,8 @@
 //const String MyBLE::ANGLE_SERV = "4fafc201-1fb5-459e-8fcc-c5c9c331914b";
 //const String MyBLE::ANGLE_CHAR = "beb5483e-36e1-4688-b7f5-ea07361b26a8";
 
-void MyBLE::initBLE() {
-    BLEDevice::init("Motiv Sensor");
+void MyBLE::initBLEMaster() {
+    BLEDevice::init("Motiv Sensor Master");
     BLEServer *pServer = BLEDevice::createServer();
     BLEService *pBattery = pServer->createService(ANGLE_SERV);
 
@@ -26,6 +26,10 @@ void MyBLE::initBLE() {
     BLEDevice::startAdvertising();
 }
 
+//void MyBLE::initBLESlave() {
+//    
+//}
+
 void MyBLE::blePeripheralConnectHandler(BLEDevice central) {
     ;
 }
@@ -35,7 +39,7 @@ void blePeripheralDisconnectHandler(BLEDevice central) {
 } 
 
 void MyBLE::setup() {
-    initBLE();
+    initBLEMaster();
 }
 
 bool MyBLE::bleComm(uint8_t dataval) {
