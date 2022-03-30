@@ -1,4 +1,4 @@
-/*
+  /*
  * Ryan Lee 
  * IGEN 430 Capstone Project 
  * Arduino main code for ESP32 based project communicating with MPU6050 IMU over I2C
@@ -17,9 +17,6 @@
 
 //debug ifdef
 #define DEBUG_
-
-#define SLAVE
-#define MASTER
 
 //gpio pin definitions
 //default I2C address 0x68
@@ -44,6 +41,7 @@ bool checkCalStatus(void);
 void OnDataSent(const uint8_t* mac_addr, esp_now_send_status_t status);
 void OnDataRec(const uint8_t* mac, const uint8_t* incomingData, int len);
 void sendESPnow(void);
+void outputAngles(void);
 
 
 //class definitions
@@ -68,13 +66,16 @@ typedef struct struct_angles {
   int8_t croll, cpitch;
 } struct_angles;
 
-struct_angles myData;
+//SLAVE
+struct_angles myDataSent;
 
-#ifdef SLAVE
+//MASTER
+// struct_angles myDataRec;
+
+//SLAVE
 esp_now_peer_info_t peerInfo;
-uint8_t broadcastAddress[6];
+uint8_t broadcastAddress[] = {0x50,0x02,0x91,0x86,0x32,0x24}; //ADDRESS OF MASTER
 esp_err_t result;
-#endif SLAVE
 
 void setup(){
     //initialize power to IMU
@@ -104,11 +105,10 @@ void setup(){
     return;
     }
 
-    #ifdef SLAVE
-    //register send CB to get status
-    esp_now_register_send_cb(OnDataSent);
+//    Serial.print("Mac Address:");Serial.println(WiFi.macAddress());
 
-    
+    //SLAVE
+    esp_now_register_send_cb(OnDataSent);
     // Register peer
     memcpy(peerInfo.peer_addr, broadcastAddress, 6);
     peerInfo.channel = 0;  
@@ -119,13 +119,11 @@ void setup(){
     Serial.println("Failed to add peer");
     return;
     }
-    #endif
 
-    #ifdef MASTER
-    esp_now_register_recv_cb(OnDataRec);
-    //start ble
-    ble.setup();
-    #endif
+    //MASTER
+//    esp_now_register_recv_cb(OnDataRec);
+//    //start ble
+//    ble.setup();
 
     // initialize device
     #ifdef DEBUG_
@@ -153,9 +151,7 @@ void loop() {
 //  output = (uint8_t) cpitch;
   ble.bleComm((uint8_t) cpitch); //cast cpitch to uint8_t to send over ble
   
-  #ifdef SLAVE //if slave device, go send data over espnow
   sendESPnow();
-  #endif
   
   outputAngles(); //print output angles
   checkCalStatus(); //poll if angle greater than 180 -> recalibrate
@@ -163,19 +159,22 @@ void loop() {
   delay(50);
 }
 
+//SLAVE
 void OnDataSent(const uint8_t* mac_addr, esp_now_send_status_t status) {
   Serial.print("Last Packet Status:");
   Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Success": "Failed");
 }
 
-void OnDataRec(const uint8_t* mac, const uint8_t* incomingData, int len) {
-  memcpy(&myData,incomingData,sizeof(myData));
-}
+//MASTER
+//void OnDataRec(const uint8_t* mac, const uint8_t* incomingData, int len) {
+//  memcpy(&myDataRec,incomingData,sizeof(myDataRec));
+//}
 
+//SLAVE
 void sendESPnow(void) {
-  myData.croll = croll;
-  myData.cpitch = cpitch;
-  result = esp_now_send(broadcastAddress, (uint8_t *) &myData, sizeof(myData));
+  myDataSent.croll = croll;
+  myDataSent.cpitch = cpitch;
+  result = esp_now_send(broadcastAddress, (uint8_t *) &myDataSent, sizeof(myDataSent));
   if (result == ESP_OK) {
     Serial.println("Sent with success");
   }
@@ -236,12 +235,8 @@ byte finderskeepers() {
 
 void get_angles(void) { //probably should switch to array
   uint8_t i=0;
-  ax_s = 0;
-  ay_s = 0;
-  az_s = 0;
-  gx_s = 0;
-  gy_s = 0;
-  gz_s = 0;
+  ax_s = 0; ay_s = 0; az_s = 0;
+  gx_s = 0; gy_s = 0; gz_s = 0;
   
   do { //take measurements for average
     accelgyro.getMotion6(&ax,&ay,&az,&gx,&gy,&gz);
