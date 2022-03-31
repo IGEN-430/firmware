@@ -12,8 +12,6 @@
 #include "mpu_cali.h"
 #include "mpu_processing.h"
 #include "ble.h"
-#include <WiFi.h>
-#include <esp_now.h>
 
 //debug ifdef
 #define DEBUG_
@@ -31,6 +29,7 @@
 //0x02 is 8g
 #define MS 9.8 // cm/s^2 per g
 #define GYRO_G 131 // this is +/-250 deg/s - therefore divide by this to get deg/s 
+#define R 0.92
 
 //function definitions
 byte finderskeepers(void);
@@ -38,9 +37,6 @@ bool calibrate(void);
 void getQuaternion(void);
 void get_angles(void);
 bool checkCalStatus(void);
-void OnDataSent(const uint8_t* mac_addr, esp_now_send_status_t status);
-void OnDataRec(const uint8_t* mac, const uint8_t* incomingData, int len);
-void sendESPnow(void);
 void outputAngles(void);
 
 
@@ -57,25 +53,11 @@ int16_t global_offsets_last[N_DATA] = {704,-1286,-134,36,71,22}; //last state sa
 //raw values
 int16_t ax, ay, az, gx, gy, gz;
 double ax_s, ay_s, az_s, gx_s, gy_s, gz_s; // summed values
+double gx_in=0,gx_inL=0, gx_out=0,gx_outL=0,gy_in=0,gy_inL=0,gy_out=0,gy_outL=0;
 double aroll, apitch, groll, gpitch, croll, cpitch; // current calculated roll/pitch values
 double grollp, gpitchp;  // the last roll pitch values for integration
 
 uint8_t output;
-
-typedef struct struct_angles {
-  int8_t croll, cpitch;
-} struct_angles;
-
-//SLAVE
-struct_angles myDataSent;
-
-//MASTER
-// struct_angles myDataRec;
-
-//SLAVE
-esp_now_peer_info_t peerInfo;
-uint8_t broadcastAddress[] = {0x50,0x02,0x91,0x86,0x32,0x24}; //ADDRESS OF MASTER
-esp_err_t result;
 
 void setup(){
     //initialize power to IMU
@@ -95,35 +77,9 @@ void setup(){
       #endif
       exit(0);
     }
-
-    //start wifi
-    WiFi.mode(WIFI_STA);
-
-    //init espnow
-    if (esp_now_init() != ESP_OK) {
-    Serial.println("Error initializing ESP-NOW");
-    return;
-    }
-
-//    Serial.print("Mac Address:");Serial.println(WiFi.macAddress());
-
-    //SLAVE
-    esp_now_register_send_cb(OnDataSent);
-    // Register peer
-    memcpy(peerInfo.peer_addr, broadcastAddress, 6);
-    peerInfo.channel = 0;  
-    peerInfo.encrypt = false;
-
-    // add peer
-    if (esp_now_add_peer(&peerInfo) != ESP_OK){
-    Serial.println("Failed to add peer");
-    return;
-    }
-
-    //MASTER
-//    esp_now_register_recv_cb(OnDataRec);
+    
 //    //start ble
-//    ble.setup();
+    ble.setup();
 
     // initialize device
     #ifdef DEBUG_
@@ -148,44 +104,23 @@ void setup(){
 
 void loop() {
   get_angles(); //update angles
-//  output = (uint8_t) cpitch;
-  ble.bleComm((uint8_t) cpitch); //cast cpitch to uint8_t to send over ble
+  output = (int8_t) cpitch;
+  ble.bleComm(cpitch); //cast cpitch to uint8_t to send over ble
   
-  sendESPnow();
+//  sendESPnow();
   
   outputAngles(); //print output angles
-  checkCalStatus(); //poll if angle greater than 180 -> recalibrate
+//  checkCalStatus(); //poll if angle greater than 180 -> recalibrate
   
   delay(50);
 }
 
-//SLAVE
-void OnDataSent(const uint8_t* mac_addr, esp_now_send_status_t status) {
-  Serial.print("Last Packet Status:");
-  Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Success": "Failed");
-}
-
-//MASTER
-//void OnDataRec(const uint8_t* mac, const uint8_t* incomingData, int len) {
-//  memcpy(&myDataRec,incomingData,sizeof(myDataRec));
-//}
-
-//SLAVE
-void sendESPnow(void) {
-  myDataSent.croll = croll;
-  myDataSent.cpitch = cpitch;
-  result = esp_now_send(broadcastAddress, (uint8_t *) &myDataSent, sizeof(myDataSent));
-  if (result == ESP_OK) {
-    Serial.println("Sent with success");
-  }
-  else {
-    Serial.println("Error sending the data");
-  }
-}
 
 /*function to check from ble whether it is time to recalibrate or not */
 bool checkCalStatus(){
-  if (gpitch > 180 || gpitch < -180) {
+  if (gpitch > 180 || gpitch < -180  || groll > 180 || groll < -180  ) {
+    Serial.println("Recalibrating");  
+    groll=0;gpitch=0;
     calibrate();
   }
 }
@@ -264,6 +199,22 @@ void get_angles(void) { //probably should switch to array
   gx_s = gx_s/GYRO_G;
   gy_s = gy_s/GYRO_G;
   gz_s = gz_s/GYRO_G;
+
+//  //update lasts
+//  gx_inL = gx_s;
+//  gy_inL = gy_s;
+//
+//  //update inputs values
+//  gx_s = gx_in;
+//  gy_s = gy_in;
+//
+//  //update lasts
+//  gx_outL = gx_out;
+//  gy_outL = gy_out;
+//
+//  gx_out = gx_in - gx_inL + (gx_outL * R);
+//  gy_out = gy_in - gy_inL + (gy_outL * R);
+
 
   p.accelAngles(&ax_s,&ay_s,&az_s,&aroll,&apitch);
   p.gyroInteg(&gx_s,&gy_s,&groll,&gpitch,&grollp,&gpitchp,p.dt_num,p.dt_denom);

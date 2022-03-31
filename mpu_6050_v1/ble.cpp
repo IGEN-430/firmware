@@ -11,7 +11,7 @@
 //const String MyBLE::ANGLE_CHAR = "beb5483e-36e1-4688-b7f5-ea07361b26a8";
 
 void MyBLE::initBLEMaster() {
-    BLEDevice::init("Motiv Sensor Master");
+    BLEDevice::init("Motiv_Sensor_Master");
     BLEServer *pServer = BLEDevice::createServer();
     BLEService *pBattery = pServer->createService(ANGLE_SERV);
 

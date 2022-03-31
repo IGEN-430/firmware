@@ -35,10 +35,10 @@ void Processor::gyroInteg(double* gx, double* gy,double* groll,double* gpitch, d
 /* Complementary filter to fuse data */
 void Processor::complemFilter(double* groll, double* gpitch, double* aroll, double* apitch, double* croll, double* cpitch) {
     if( (*groll > 0 && *aroll > 0) || (*groll < 0 && *aroll < 0)) { //again making sure that signs are the same
-    *croll = *groll * 0.2 + *aroll * 0.8;
+    *croll = *groll * 0.05 + *aroll * 0.95;
     }
     else { //if not, goes with the accelerometer sign
-      *croll = -*groll * 0.2 + *aroll * 0.8;
+      *croll = -*groll * 0.05 + *aroll * 0.95;
     }
     if ( (*gpitch > 0 && *apitch > 0) || (*gpitch < 0 && *apitch < 0)){
       *cpitch = *gpitch * gyro_num/dt_denom + *apitch * accel_num/dt_denom;
