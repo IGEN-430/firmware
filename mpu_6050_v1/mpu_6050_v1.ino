@@ -19,6 +19,8 @@
 //gpio pin definitions
 //default I2C address 0x68
 #define PWR 33 //tinypico is 33, dev module is 19
+#define LED 4
+#define GND 15
 
 #define NCOUNT 3
 #define G 8192 
@@ -60,10 +62,16 @@ double grollp, gpitchp;  // the last roll pitch values for integration
 uint8_t output;
 
 void setup(){
+    //turn on led
+    pinMode(LED,OUTPUT);
+    pinMode(GND,OUTPUT);
+    digitalWrite(GND,LOW);
+    digitalWrite(LED,HIGH);
     //initialize power to IMU
     pinMode(PWR,OUTPUT);
     digitalWrite(PWR,HIGH);
-    delay(2500);
+    //for testing because power switch isnt properly installed right now
+    delay(1500);
     
     //begin communication functions
     Serial.begin(38400);
@@ -106,12 +114,8 @@ void loop() {
   get_angles(); //update angles
   output = (int8_t) cpitch;
   ble.bleComm(cpitch); //cast cpitch to uint8_t to send over ble
-  
-//  sendESPnow();
-  
+    
   outputAngles(); //print output angles
-//  checkCalStatus(); //poll if angle greater than 180 -> recalibrate
-  
   delay(50);
 }
 
@@ -199,22 +203,6 @@ void get_angles(void) { //probably should switch to array
   gx_s = gx_s/GYRO_G;
   gy_s = gy_s/GYRO_G;
   gz_s = gz_s/GYRO_G;
-
-//  //update lasts
-//  gx_inL = gx_s;
-//  gy_inL = gy_s;
-//
-//  //update inputs values
-//  gx_s = gx_in;
-//  gy_s = gy_in;
-//
-//  //update lasts
-//  gx_outL = gx_out;
-//  gy_outL = gy_out;
-//
-//  gx_out = gx_in - gx_inL + (gx_outL * R);
-//  gy_out = gy_in - gy_inL + (gy_outL * R);
-
 
   p.accelAngles(&ax_s,&ay_s,&az_s,&aroll,&apitch);
   p.gyroInteg(&gx_s,&gy_s,&groll,&gpitch,&grollp,&gpitchp,p.dt_num,p.dt_denom);

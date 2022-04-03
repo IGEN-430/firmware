@@ -2,6 +2,7 @@ from Processing import *
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import seaborn as sns
 
 ## Script - Rename my log to csv file!
 # log2csv_rename()
@@ -34,22 +35,40 @@ rot_c = complementaryFilter(rot_gyro,rot_accel)
 # plt.title('acceleration raw values in cm/s^2')
 # plt.legend()
 
-plt.figure()
-plt.plot(rot_gyro[:,0],label='gyro_angle')
-plt.plot(rot_accel[:,0],label='accel_angle')
-plt.plot(rot_c[:,0],label='comp_filter')
-plt.xlabel('time')
-plt.ylabel('deg')
-plt.title('Comparison of pitch around Xaxis angles calculated')
-plt.legend()
+# plt.figure()
+# plt.plot(rot_gyro[:,0],label='gyro_angle')
+# plt.plot(rot_accel[:,0],label='accel_angle')
+# plt.plot(rot_c[:,0],label='comp_filter')
+# plt.xlabel('time')
+# plt.ylabel('deg')
+# plt.title('Comparison of pitch around Xaxis angles calculated')
+# plt.legend()
 
-plt.figure()
-plt.plot(rot_gyro[:,1],label='gyro_angle')
-plt.plot(rot_accel[:,1],label='accel_angle')
-plt.plot(rot_c[:,1],label='comp_filter')
-plt.xlabel('time')
-plt.ylabel('deg')
-plt.title('Comparison of roll around Yaxis angles calculated')
-plt.legend()
+# plt.figure()
+# plt.plot(rot_gyro[:,1],label='gyro_angle')
+# plt.plot(rot_accel[:,1],label='accel_angle')
+# plt.plot(rot_c[:,1],label='comp_filter')
+# plt.xlabel('time')
+# plt.ylabel('deg')
+# plt.title('Comparison of roll around Yaxis angles calculated')
+# plt.legend()
+
+# plt.show()
+
+dfg = pd.DataFrame(rot_gyro)
+dfg.columns = ['rollx','pitchy']
+dfa = pd.DataFrame(rot_accel)
+dfa.columns = ['rollx','pitchy']
+dfc = pd.DataFrame(rot_c)
+dfc.columns = ['rollx','pitchy']
+
+dfroll = pd.concat([dfg['pitchy'],dfa['pitchy'],dfc['pitchy']],axis=1,join='inner')
+dfroll.columns = ['gyroscope_raw','accelerometer_raw','complimentary_filter']
+sns.set_theme()
+p = sns.lineplot(data=dfroll)
+p.set_title('Analysis of data')
+p.set_xlabel('Time (bins)')
+p.set_ylabel('Angle (degrees)')
 
 plt.show()
+print("hi")
